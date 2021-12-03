@@ -120,7 +120,7 @@ defind()
         self.version=opts.get('version')
         self.help_desc=opts.get('help_desc','Help') 
 
-    def define(self,name,**opts):
+    def define(self,name=None,**opts):
         def error_exit(msg):
             print(msg)
             os._exit(1)
@@ -142,6 +142,11 @@ defind()
         _required=opts.get('required',False)
         _command=opts.get('command',False)
         _spliter=opts.get('spliter',None) #list or tuple case but input is string
+        if IsNone(name) and  not _command:
+            if _short:
+                error_exit('Required parameter name for option at {}'.format(_short))
+            else:
+                error_exit('Required parameter name for option at {}'.format(_long))
 
         _value=[]
         # location parameter(value)
@@ -230,19 +235,21 @@ defind()
             if _command:
                 if _group not in self.commands: self.commands.append(_group)
             if _group not in self.group: self.group[_group]={}
-            self.group[_group][name]={
-                'short':_short,
-                'long':_long,
-                'params':_params,
-                'params_name':_params_name,
-                'type':_type,
-                'desc':_desc,
-                'value':_value,
-                'default':_default,
-                'required':_required,
-                'spliter':_spliter,
-            }
-            if _command: self.group[_group]['command']=_command
+            if _command:
+                self.group[_group]['command']=_command
+            else:
+                self.group[_group][name]={
+                    'short':_short,
+                    'long':_long,
+                    'params':_params,
+                    'params_name':_params_name,
+                    'type':_type,
+                    'desc':_desc,
+                    'value':_value,
+                    'default':_default,
+                    'required':_required,
+                    'spliter':_spliter,
+                }
             if _group_desc: self.group[_group]['desc']=_group_desc
         else:
             self.option[name]={
