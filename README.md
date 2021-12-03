@@ -19,20 +19,19 @@ pip install SysArg
 ```
 
 - Initialize
-   1. program : Program Name
-   1. cmd_id  : command ID
-   1. desc    : Program Description
-   1. epilog  : Program Epilog (tail string of the help)
-   1. version : define Program version
-   1. help_desc: Customize description of Help
+   - program : Program Name
+   - cmd_id  : command ID
+   - desc    : Program Description
+   - epilog  : Program Epilog (tail string of the help)
+   - version : define Program version
+   - help_desc: Customize description of Help
 
-Example)
 ```javascript
 import SysArg
 arg=SysArg.SysArg(program='ArgTest',desc='ARG. Testing',version='1.0')
 ```
 
-if you want make a special command in this application case: (ArgTest <command> ...)
+if you want make a special command in this application case: (ArgTest command ...)
 ```javascript
 import SysArg
 arg=SysArg.SysArg(program='ArgTest',desc='ARG. Testing',version='1.0',cmd_id=1)
