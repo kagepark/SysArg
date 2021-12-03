@@ -265,10 +265,14 @@ defind()
                 'spliter':_spliter,
             }
 
-    def Cmd(self):
+    def Cmd(self,name=None):
         if self.cmd_id == 0 : return self.argv[0]
         if len(self.argv) > self.cmd_id:
             if self.argv[self.cmd_id] in self.commands:
+                if name:
+                    if self.argv[self.cmd_id] == name:
+                        return True
+                    return False
                 return self.argv[self.cmd_id]
             print(':: Wrong command "{}"\n'.format(self.argv[self.cmd_id]))
         else:
