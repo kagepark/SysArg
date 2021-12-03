@@ -271,8 +271,10 @@ defind()
             if self.argv[self.cmd_id] in self.commands:
                 if name:
                     if self.argv[self.cmd_id] == name:
+                        self.Check(group=name)
                         return True
                     return False
+                self.Check(group=self.argv[self.cmd_id])
                 return self.argv[self.cmd_id]
             print(':: Wrong command "{}"\n'.format(self.argv[self.cmd_id]))
         else:
