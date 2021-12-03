@@ -38,18 +38,19 @@ arg=SysArg.SysArg(program='ArgTest',desc='ARG. Testing',version='1.0',cmd_id=1)
 ```
 
 - defind
-  name: (required) parameter name
-  short: short parameter(-XX)
-  long: long parameter(--XX)
-  params: 
-     default:0(found parameter then True), 
-     0<n: how many required parameter input data(number)
-     - : until next parameter or until finished inputs
-  params_name: --abc=<PARAMS_NAME(Explain String)> (this format)
-  required: required parameter (default False, need then True)
-  default: default value when no input
-  type: default str, if you want int value then change to int, wrong type then not taken
-  group: make a special group's prameters
-  group_desc: group desciption
+  - name: (required) parameter name
+  - short: short parameter(-XX)
+  - long: long parameter(--XX)
+  - params: 
+     - default:0(found parameter then True), 
+     - 0<n: how many required parameter input data(number)
+     - \- : until next parameter or until finished inputs
+  - params_name: --abc=<PARAMS_NAME(Explain String)> (this format)
+  - required: required parameter (default False, need then True)
+  - default: default value when no input
+  - type: default str, if you want int value then change to int, wrong type then not taken
+  - group: make a special group's prameters
+  - group_desc: group desciption
+  - command: If Command Group(bool)
 
 
