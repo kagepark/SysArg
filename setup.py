@@ -18,7 +18,11 @@ def lib_ver():
                 if isinstance(gver,bytes): gver=gver.decode('latin1')
             else:
                 if isinstance(gver,unicode): gver=gver.encode('latin1')
-            return '.'.join(gver.split('\n')[0].split('-')[:-1])
+            gver_a=gver.split('\n')[0].split('-')
+            if len(gver_a) == 1:
+                return gver_a[0]
+            else:
+                return '.'.join(gver_a[:-1])
     else:
         my_ver=os.path.basename(my_dir)
         ver_a=my_ver.split('-')
