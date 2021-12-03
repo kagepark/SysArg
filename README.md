@@ -1,13 +1,44 @@
 # SysArg
 CLI Argument Parser Functions
 
+## Contents
+1. Install
+1. Initialize
+1. Functions
+   1. defind        : Setup option/command/group/help....
+   1. Cmd           : Get Inputed Special Command (it need cmd_id=1 parameter at initialize)
+   1. Get           : Get parameter's input values
+   1. Version       : show version
+   1. Check         : Check option 
+   1. Help          : Dispaly Help
+   
 
-SysArg()
-  program: Program name
-  desc: Program Description
-  epilog: Program Epilog (tail string of the help)
-  help_desc: special Help description
-defind()
+- Install
+```javascript
+pip install SysArg
+```
+
+- Initialize
+   1. program : Program Name
+   1. cmd_id  : command ID
+   1. desc    : Program Description
+   1. epilog  : Program Epilog (tail string of the help)
+   1. version : define Program version
+   1. help_desc: Customize description of Help
+
+Example)
+```javascript
+import SysArg
+arg=SysArg.SysArg(program='ArgTest',desc='ARG. Testing',version='1.0')
+```
+
+if you want make a special command in this application case: (ArgTest <command> ...)
+```javascript
+import SysArg
+arg=SysArg.SysArg(program='ArgTest',desc='ARG. Testing',version='1.0',cmd_id=1)
+```
+
+- defind
   name: (required) parameter name
   short: short parameter(-XX)
   long: long parameter(--XX)
@@ -21,3 +52,5 @@ defind()
   type: default str, if you want int value then change to int, wrong type then not taken
   group: make a special group's prameters
   group_desc: group desciption
+
+
