@@ -427,7 +427,7 @@ defind()
                    print('Version: {}'.format(self.version))
 
            #Print Special Group Option
-           if self.commands and self.cmd_id > 0 and self.argv[self.cmd_id] in self.commands:
+           if self.commands and self.cmd_id > 0 and len(self.argv) > self.cmd_id and self.argv[self.cmd_id] in self.commands:
                if self.group[self.argv[self.cmd_id]].get('command'):
                    if self.group[self.argv[self.cmd_id]].get('desc'):
                        _group_desc=tap_string(self.group[self.argv[self.cmd_id]]['desc'],nspace=short_len+long_len+desc_space)
