@@ -276,7 +276,8 @@ defind()
                     return False
                 self.Check(group=self.argv[self.cmd_id])
                 return self.argv[self.cmd_id]
-            print(':: Wrong command "{}"\n'.format(self.argv[self.cmd_id]))
+            if self.argv[self.cmd_id] not in ['--version','--help']:
+                print(':: Wrong command "{}"\n'.format(self.argv[self.cmd_id]))
         else:
             print(':: Require some command\n')
         self.Help(call=True)
@@ -481,14 +482,16 @@ defind()
 
            #Print Group Option
            for gg in self.group:
-               print()
                if self.group[gg].get('command'):
+                   if len(self.group[gg]) < 3: continue
+                   print()
                    if self.group[gg].get('desc'):
                        _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
                        print('* %-{}s  %s'.format(short_len+long_len-2)%(gg,_group_desc))
                    else:
                        print('* %-{}s'.format(short_len+long_len-2)%(gg))
                else:
+                   print()
                    if self.group[gg].get('desc'):
                        _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
                        print('%-{}s%s'.format(short_len+long_len)%('[ {} ]'.format(gg),_group_desc))
