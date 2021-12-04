@@ -316,7 +316,7 @@ defind()
     def Check(self,group=None):
         if group and group in self.group:
             for name in self.group[group]:
-                if self.group[group][name].get('required'):
+                if isinstance(self.group[group][name],dict) and self.group[group][name].get('required'):
                     if IsNone(self.group[group][name].get('value')):
                         if IsNone(self.group[group][name].get('default')):
                             print(':: Missing required option "{}" of {}\n'.format(name,group))
