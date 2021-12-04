@@ -113,6 +113,15 @@ Get Input Command name
 cmd=arg.Cmd()
 ```
 
+Check input 'command'
+```javascript
+   if arg.Cmd('command'):
+       ~~~~
+   else:
+       ~~~~
+```
+
+
 - Get parameter's value
    - All data
 ```javascript
