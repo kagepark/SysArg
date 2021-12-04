@@ -292,9 +292,9 @@ defind()
             return vv
 
         if group and group in self.group and name:
-            return Val(self.group[group][name])
+            return IsNone(Val(self.group[group][name]),out=None)
         elif name in self.option:
-            return Val(self.option[name])
+            return IsNone(Val(self.option[name]),out=None)
         else:
             rt={}
             if not name and not group:
@@ -310,7 +310,7 @@ defind()
                 for o in self.group[group]:
                     if isinstance(self.group[group][o],dict):
                         rt[group][o]=IsNone(Val(self.group[group][o]),out=None)
-            return rt
+            return IsNone(rt,out=None)
 
 
     def Check(self,group=None):
