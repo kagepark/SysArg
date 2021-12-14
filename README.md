@@ -53,6 +53,8 @@ arg=SysArg.SysArg(program='ArgTest',desc='ARG. Testing',version='1.0',cmd_id=1)
   - group: make a special group's prameters
   - group_desc: group desciption
   - command: If Command Group then True
+  - arg: If this group is command and need input argument then True
+  - select: If you want selectable input, this is list type format, if wrong input then Get() command will make an error
 
 
 example format:  -n, --numbre=INT
@@ -105,6 +107,8 @@ example command group:
 arg.define(group_desc='File list',group='ls',command=True)
 arg.define('show_detail',short='-l',desc='show detail',group='ls')
 arg.define('show_time',short='-t',desc='show time',group='ls')
+arg.define('number',short='-n',long='--number',params_name='INT',type=int,desc='Number Input',group='INPUT')
+arg.define(group_desc='Power command',group='power',command=True,arg=True,select=['on','off','reset'])
 ```
 
 - Cmd
@@ -118,9 +122,25 @@ cmd=arg.Cmd()
 ```javascript
 param=arg.Get()
 ```
+
    - Get group INPUT's All data
 ```javascript
 param=arg.Get(group='INPUT')
+```
+
+   - Get value of COMMAND power's data
+```javascript
+# ./APP power -i x.x.x.x on
+```
+
+```javascript
+if arg.Cmd('power'):
+    pw_cmd=arg.Get(group='power')
+    if pw_cmd == 'on':
+        ...
+    elif pw_cmd == 'off':
+        ...
+    ....
 ```
 
    - Get Parameter number's data

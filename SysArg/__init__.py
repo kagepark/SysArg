@@ -120,13 +120,13 @@ defind()
         self.version=opts.get('version')
         self.help_desc=opts.get('help_desc','Help') 
 
-    def define(self,name=None,**opts):
-        def error_exit(msg):
-            print(msg)
-            os._exit(1)
+    def error_exit(self,msg):
+        print(msg)
+        os._exit(1)
 
+    def define(self,name=None,**opts):
         if name in self.option:
-            error_exit('Already defined "{}" parameter name'.format(name))
+            self.error_exit('Already defined "{}" parameter name'.format(name))
         _short=opts.get('short')
         _long=opts.get('long')
         _params_name=opts.get('params_name') # something : --time=SOMETHING, None: --time WORD
@@ -141,12 +141,14 @@ defind()
         _group_desc=opts.get('group_desc')
         _required=opts.get('required',False)
         _command=opts.get('command',False)
+        _select=opts.get('select',[])
         _spliter=opts.get('spliter',None) #list or tuple case but input is string
-        if IsNone(name) and  not _command:
+        _arg=opts.get('arg',False)
+        if IsNone(name) and  not _command and not _arg:
             if _short:
-                error_exit('Required parameter name for option at {}'.format(_short))
+                self.error_exit('Required parameter name for option at {}'.format(_short))
             else:
-                error_exit('Required parameter name for option at {}'.format(_long))
+                self.error_exit('Required parameter name for option at {}'.format(_long))
 
         _value=[]
         # location parameter(value)
@@ -157,17 +159,17 @@ defind()
             # Check same option
             for cc in self.option:
                 if _short and self.option[cc].get('short') == _short:
-                    error_exit('ERROR: Already "{} of {}" defined at {}'.format(_short,name,cc))
+                    self.error_exit('ERROR: Already "{} of {}" defined at {}'.format(_short,name,cc))
                 if _long and self.option[cc].get('long') == _long:
-                    error_exit('ERROR: Already "{} of {}" defined at {}'.format(_long,name,cc))
+                    self.error_exit('ERROR: Already "{} of {}" defined at {}'.format(_long,name,cc))
             # Check same option in each group
             if _group in self.group: 
                 for cc in self.group[_group]:
                     if not isinstance(self.group[_group][cc],dict): continue
                     if _short and self.group[_group][cc].get('short') == _short:
-                        error_exit('ERROR: Already "{} of {}" defined at {} in {}'.format(_short,name,cc,_group))
+                        self.error_exit('ERROR: Already "{} of {}" defined at {} in {}'.format(_short,name,cc,_group))
                     if _long and self.group[_group][cc].get('long') == _long:
-                        error_exit('ERROR: Already "{} of {}" defined at {} in {}'.format(_long,name,cc,_group))
+                        self.error_exit('ERROR: Already "{} of {}" defined at {} in {}'.format(_long,name,cc,_group))
 
             # Check parameter
             if _params == 0:
@@ -194,7 +196,7 @@ defind()
                         if ii.startswith('{}='.format(_long)):
                             __v__=TypeData(_type,ii.split('=')[1],_spliter)
                             if __v__ is False:
-                                error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_long,_type.__name___)) 
+                                self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_long,_type.__name___)) 
                             _value.append(__v__)
                         else:
                             tt.append(ii)
@@ -209,7 +211,7 @@ defind()
                                         break
                                     __v__=TypeData(_type,self.args[jj],_spliter)
                                     if __v__ is False:
-                                        error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
+                                        self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
                                     _value.append(__v__)
                                 break
                                 tt=tt+self.args[jj+1:]
@@ -219,7 +221,7 @@ defind()
                                         break
                                     __v__=TypeData(_type,self.args[ii+1+jj],_spliter)
                                     if __v__ is False:
-                                        error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
+                                        self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
                                     _value.append(__v__)
                                 if len(_value) == _params:
                                     tt=tt+self.args[ii+jj+2:]
@@ -237,6 +239,21 @@ defind()
             if _group not in self.group: self.group[_group]={}
             if _command:
                 self.group[_group]['command']=_command
+                #If command has _select and arg then this command should be need input arg value in selection
+                if _arg:
+                    self.group[_group]['arg']=True
+                    if _select:
+                        self.group[_group]['select']=_select
+                        if not self.__dict__.get('args'):
+                            if _default: self.group[_group]['value']=_default
+                        #elif self.__dict__.get('args')[0] in _select:
+                        else: #put any data (even if wrong data)
+                            self.group[_group]['value']=self.__dict__.get('args')[0]
+                            del self.__dict__['args'][0]
+                    else:
+                        if int(self.__dict__.get('args')) > 0:
+                            self.group[_group]['value']=self.__dict__.get('args')[0]
+                            del self.__dict__['args'][0]
             else:
                 self.group[_group][name]={
                     'short':_short,
@@ -249,6 +266,7 @@ defind()
                     'default':_default,
                     'required':_required,
                     'spliter':_spliter,
+                    'select':_select,
                 }
             if _group_desc: self.group[_group]['desc']=_group_desc
         else:
@@ -263,6 +281,7 @@ defind()
                 'default':_default,
                 'required':_required,
                 'spliter':_spliter,
+                'select':_select,
             }
 
     def Cmd(self,name=None):
@@ -286,14 +305,22 @@ defind()
         def Val(data,mode='auto'):
             if isinstance(data,dict):
                 vv=data.get('value')
-                if IsNone(vv): vv=data.get('default')
+                if IsNone(vv):
+                    vv=data.get('default')
+                if data.get('select'):
+                    if vv in data.get('select'):
+                        return vv
+                    else:
+                        self.error_exit('ERROR: Wrong input({}). it should be one of {}'.format(vv,data['select']))
                 if mode == 'auto':
                     if isinstance(vv,list) and len(vv) == 1:
                         return vv[0]
-            return vv
+                return vv
 
-        if group and group in self.group and name:
-            return IsNone(Val(self.group[group][name]),out=None)
+        if group and group in self.group:
+            if name:
+                return IsNone(Val(self.group[group][name]),out=None)
+            return IsNone(Val(self.group[group]),out=None)
         elif name in self.option:
             return IsNone(Val(self.option[name]),out=None)
         else:
@@ -341,7 +368,7 @@ defind()
        #######################
        #Description Design
        #######################
-       def mk_desc(_desc,default=None,required=False,nspace=short_len+long_len+desc_space,_type=None,_params=None,_params_name=None,_spliter=None):
+       def mk_desc(_desc,default=None,required=False,nspace=short_len+long_len+desc_space,_type=None,_params=None,_params_name=None,_spliter=None,_select=None):
            if _desc:
                if default:
                    _desc=_desc+'(default:{})'.format(default)
@@ -355,16 +382,18 @@ defind()
                        _desc=_desc+',required'
                    else:
                        _desc='required'
-           if _type and _params_name is None:
+           if _select:
+               _desc=_desc+'(choose:{})'.format(_select)
+           elif _type and _params_name is None:
                s = 'N' if _type is int \
-                       else 'V{0}V{0}..'.format(_spliter) if _type is list and _spliter \
-                       else 'V V ..' if _type is list and ((isinstance(_params,int) and _params > 1) or _params == '-') \
-                       else '[V,V,..]' if _type is list \
-                       else 'V{0}V{0}..' if _type is tuple and _spliter \
-                       else 'V V ..' if _type is tuple and ((isinstance(_params,int) and _params > 1) or _params =='-')\
-                       else '(V,V,..)' if _type is tuple \
-                       else "{'S':'V',..}" if _type is dict \
-                       else 'S'
+                   else 'V{0}V{0}..'.format(_spliter) if _type is list and _spliter \
+                   else 'V V ..' if _type is list and ((isinstance(_params,int) and _params > 1) or _params == '-') \
+                   else '[V,V,..]' if _type is list \
+                   else 'V{0}V{0}..' if _type is tuple and _spliter \
+                   else 'V V ..' if _type is tuple and ((isinstance(_params,int) and _params > 1) or _params =='-')\
+                   else '(V,V,..)' if _type is tuple \
+                   else "{'S':'V',..}" if _type is dict \
+                   else 'S'
                        
                if isinstance(_params,int) and _params:
                    if _params==1:
@@ -394,7 +423,7 @@ defind()
        #######################
        def print_option(data):
            if isinstance(data,dict):
-               _desc=mk_desc(data.get('desc'),default=data.get('default'),required=data.get('required'),nspace=short_len+long_len+desc_space,_type=data.get('type'),_params=data.get('params'),_params_name=data.get('params_name'),_spliter=data.get('spliter'))
+               _desc=mk_desc(data.get('desc'),default=data.get('default'),required=data.get('required'),nspace=short_len+long_len+desc_space,_type=data.get('type'),_params=data.get('params'),_params_name=data.get('params_name'),_spliter=data.get('spliter'),_select=data.get('select'))
                if data.get('short') and data.get('long'):
                    if len(data.get('short')) > short_len:
                        sss=long_len-(len(data.get('short'))-short_len)
@@ -462,7 +491,10 @@ defind()
                for cc in self.commands:
                    if self.group.get(cc,{}).get('desc'):
                        _group_desc=tap_string(self.group[cc]['desc'],nspace=short_len+long_len+desc_space)
-                       print('  %-{}s%s'.format(short_len+long_len)%(cc,_group_desc))
+                       if self.group.get(cc,{}).get('arg'): # required argument
+                           print('  %-{}s%s'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
+                       else:
+                           print('  %-{}s%s'.format(short_len+long_len)%(cc,_group_desc))
                    else:
                        print('  %-{}s'.format(short_len+long_len)%(cc))
 
@@ -483,20 +515,28 @@ defind()
            #Print Group Option
            for gg in self.group:
                if self.group[gg].get('command'):
-                   if len(self.group[gg]) < 3: continue
-                   print()
-                   if self.group[gg].get('desc'):
-                       _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
-                       print('* %-{}s  %s'.format(short_len+long_len-2)%(gg,_group_desc))
-                   else:
-                       print('* %-{}s'.format(short_len+long_len-2)%(gg))
+                   #if command but no option then ignore
+                   if len(self.group[gg]) < 6: continue
+              #Make a same condition as normal group to command group
+              #     print()
+              #     if self.group[gg].get('desc'):
+              #         _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
+              #         print('* %-{}s  %s'.format(short_len+long_len-2)%(gg,_group_desc))
+              #     else:
+              #         print('* %-{}s'.format(short_len+long_len-2)%(gg))
+              # else:
+              #     print()
+              #     if self.group[gg].get('desc'):
+              #         _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
+              #         print('%-{}s%s'.format(short_len+long_len)%('[ {} ]'.format(gg),_group_desc))
+              #     else:
+              #         print('%-{}s'.format(short_len+long_len)%('[ {} ]'.format(gg)))
+               print()
+               if self.group[gg].get('desc'):
+                   _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
+                   print('%-{}s%s'.format(short_len+long_len)%(' * {}'.format(gg),_group_desc))
                else:
-                   print()
-                   if self.group[gg].get('desc'):
-                       _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
-                       print('%-{}s%s'.format(short_len+long_len)%('[ {} ]'.format(gg),_group_desc))
-                   else:
-                       print('%-{}s'.format(short_len+long_len)%('[ {} ]'.format(gg)))
+                   print('%-{}s'.format(short_len+long_len)%(' * {}'.format(gg)))
                for oo in self.group[gg]:
                    print_option(self.group[gg][oo])
 
@@ -505,3 +545,5 @@ defind()
                print(self.epilog)
            os._exit(0)
             
+    def Args(self):
+        return self.__dict__.get('args')
