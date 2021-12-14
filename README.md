@@ -117,6 +117,15 @@ Get Input Command name
 cmd=arg.Cmd()
 ```
 
+Check input 'command'
+```javascript
+   if arg.Cmd('command'):
+       ~~~~
+   else:
+       ~~~~
+```
+
+
 - Get parameter's value
    - All data
 ```javascript
@@ -159,9 +168,30 @@ Simple Example)
 import SysArg
 arg=SysArg.SysArg(program='ArgTest',desc='ARG. Testing',version='1.0',cmd_id=1)
 arg.define('a',short='-a',long='--abc',desc='test input',params=1)
+arg.define(group_desc='test command',group='ls',command=True)
+arg.define('detail',short='-l',desc='show detail',group='ls')
+arg.define('find_time',short='-t',desc='find time',group='ls',params=1)
 arg.Version()
 arg.Help()
 
 cmd=arg.Cmd()
 a=arg.Get('a')
+```
+Output:
+```
+$ python3 a.py --help
+Usage: ArgTest <command> [OPTION] [<args>]
+Version: 1.0
+ARG. Testing
+
+Supported <command>s are:
+  ls                                 test command
+
+[OPTION]
+   -h, --help                        Help
+   -a, --abc                         test input(input(1):S)
+
+* ls                                 test command
+   -l                                show detail
+   -t                                find time(input(1):S)
 ```
