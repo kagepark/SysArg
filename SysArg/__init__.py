@@ -356,12 +356,14 @@ defind()
                         print(':: Missing required option "{}"\n'.format(name))
                         self.Help(call=True)
         
-    def Version(self,version=None,call=False):
+    def Version(self,version=None,call=False,new_line='\n'):
         if (version or self.version) and '--version' in sys.argv:
             if version:
-                print(version)
+                sys.stdout.write(version)
             else:
-                print(self.version)
+                sys.stdout.write(self.version)
+            if new_line: sys.stdout.write(new_line)
+            sys.stdout.flush()
             os._exit(0)
 
     def Help(self,Short='-h',Long='--help',call=False,short_len=5,long_len=30,desc_space=2):
