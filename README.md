@@ -15,7 +15,7 @@ CLI Argument Parser Functions
 
 - Install
 ```javascript
-pip install SysArg
+pip3 install SysArg
 ```
 
 - Initialize
