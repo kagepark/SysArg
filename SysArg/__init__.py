@@ -301,12 +301,12 @@ defind()
             print(':: Require some command\n')
         self.Help(call=True)
 
-    def Get(self,name=None,group=None,mode='auto'):
-        def Val(data,mode='auto'):
+    def Get(self,name=None,group=None,mode='auto',default=None):
+        def Val(data,mode='auto',default=None):
             if isinstance(data,dict):
                 vv=data.get('value')
                 if IsNone(vv):
-                    vv=data.get('default')
+                    vv=data.get('default',default)
                 if data.get('select'):
                     if vv in data.get('select'):
                         return vv
@@ -316,29 +316,31 @@ defind()
                     if isinstance(vv,list) and len(vv) == 1:
                         return vv[0]
                 return vv
+            return default
 
         if group and group in self.group:
             if name:
-                return IsNone(Val(self.group[group][name]),out=None)
-            return IsNone(Val(self.group[group]),out=None)
+                return IsNone(Val(self.group[group][name],default=default),out=default)
+            return IsNone(Val(self.group[group],default=default),out=default)
         elif name in self.option:
-            return IsNone(Val(self.option[name]),out=None)
+            return IsNone(Val(self.option[name],default=default),out=default)
         else:
             rt={}
             if not name and not group:
                 for o in self.option:
-                    rt[o]=IsNone(Val(self.option[o]),out=None)
+                    rt[o]=IsNone(Val(self.option[o],default=default),out=default)
                 for g in self.group:
                     if g not in rt: rt[g]={}
                     for o in self.group[g]:
                         if isinstance(self.group[g][o],dict):
-                            rt[g][o]=IsNone(Val(self.group[g][o]),out=None)
+                            rt[g][o]=IsNone(Val(self.group[g][o],default=default),out=default)
             elif not name and group and group in self.group:
                 rt[group]={}
                 for o in self.group[group]:
                     if isinstance(self.group[group][o],dict):
-                        rt[group][o]=IsNone(Val(self.group[group][o]),out=None)
-            return IsNone(rt,out=None)
+                        rt[group][o]=IsNone(Val(self.group[group][o],default=default),out=default)
+            return IsNone(rt,out=default)
+        return default
 
 
     def Check(self,group=None):
