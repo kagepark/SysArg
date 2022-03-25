@@ -179,13 +179,13 @@ defind()
                     if _short in self.args:
                         _value=True
                         self.args.remove(_short)
-                    else:
-                        for ii in range(0,len(self.args)):
-                            if re.match(r'-[a-zA-Z0-9]',self.args[ii]):
-                                if _short[1:] in self.args[ii]:
-                                    _value=True
-                                    i=self.args[ii].index(_short[1:])
-                                    self.args[ii]=self.args[ii][:i]+self.args[ii][i+len(_short[1:]):]                
+#                    else:
+#                        for ii in range(0,len(self.args)):
+#                            if re.match(r'-[a-zA-Z0-9]',self.args[ii]):
+#                                if _short[1:] in self.args[ii]:
+#                                    _value=True
+#                                    i=self.args[ii].index(_short[1:])
+#                                    self.args[ii]=self.args[ii][:i]+self.args[ii][i+len(_short[1:]):]                
             # Input parameter
             else:
                 if _long and _params_name:
