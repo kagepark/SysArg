@@ -1,10 +1,8 @@
-# Kage Park
-# CLI Argument define
 
-import sys
+import ast
 import os
 import re
-import ast
+import sys
 
 def IsNone(inp,**opts):
     default=opts.get('default',opts.get('out',True))
@@ -121,7 +119,8 @@ defind()
         self.help_desc=opts.get('help_desc','Help') 
 
     def error_exit(self,msg):
-        print(msg)
+        sys.stderr.write('{}\n'.format(msg))
+        sys.stderr.flush()
         os._exit(1)
 
     def define(self,name=None,**opts):
@@ -298,7 +297,7 @@ defind()
             if self.argv[self.cmd_id] not in ['--version','--help']:
                 print(':: Wrong command "{}"\n'.format(self.argv[self.cmd_id]))
         else:
-            print(':: Require some command\n')
+            print(':: Require some command, check cmd_id=N in SysArg()\n')
         self.Help(call=True)
 
     def Get(self,name=None,group=None,mode='auto'):
@@ -347,21 +346,27 @@ defind()
                 if isinstance(self.group[group][name],dict) and self.group[group][name].get('required'):
                     if IsNone(self.group[group][name].get('value')):
                         if IsNone(self.group[group][name].get('default')):
-                            print(':: Missing required option "{}" of {}\n'.format(name,group))
+                            aa=self.group[group][name].get('long') if self.group[group][name].get('long') else self.group[group][name].get('short')
+                            sys.stdout.write('\n!! Missing required option "{}({})" of {} !!\n\n'.format(aa,name,group))
+                            sys.stdout.flush()
                             self.Help(call=True)
         for name in self.option:
             if self.option[name].get('required'):
                 if IsNone(self.option[name].get('value')):
                     if IsNone(self.option[name].get('default')):
-                        print(':: Missing required option "{}"\n'.format(name))
+                        aa=self.group[group][name].get('long') if self.group[group][name].get('long') else self.group[group][name].get('short')
+                        sys.stdout.write('\n!! Missing required option "{}({})" !!\n\n'.format(name,aa))
+                        sys.stdout.flush()
                         self.Help(call=True)
         
     def Version(self,version=None,call=False,new_line='\n'):
         if (version or self.version) and '--version' in sys.argv:
             if version:
-                sys.stdout.write(version)
+                sys.stdout.write('{}'.format(version))
+            elif self.version:
+                sys.stdout.write('{}'.format(self.version))
             else:
-                sys.stdout.write(self.version)
+                sys.stdout.write('No version information')
             if new_line: sys.stdout.write(new_line)
             sys.stdout.flush()
             os._exit(0)
@@ -432,115 +437,112 @@ defind()
                    else:
                        sss=long_len
                    if data.get('params_name'):
-                       print('%{}s, %-{}s%s'.format(short_len,sss)%(data.get('short'),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
+                       sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,sss)%(data.get('short'),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
                    else:
-                       print('%{}s, %-{}s%s'.format(short_len,sss)%(data.get('short'),data.get('long'),_desc))
+                       sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,sss)%(data.get('short'),data.get('long'),_desc))
+                   sys.stdout.flush()
                elif data.get('short'):
                    if len(data.get('short')) > short_len:
                        sss=long_len-(len(data.get('short'))-short_len)
                    else:
                        sss=long_len
-                   print('%{}s  %s%s'.format(short_len)%(data.get('short'),space(sss),_desc))
+                   sys.stdout.write('%{}s  %s%s\n'.format(short_len)%(data.get('short'),space(sss),_desc))
+                   sys.stdout.flush()
                elif data.get('long'):
                    if data.get('params_name'):
-                       print('%s  %-{}s%s'.format(long_len)%(space(short_len),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
+                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(space(short_len),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
                    else:
-                       print('%s  %-{}s%s'.format(long_len)%(space(short_len),data.get('long'),_desc))
+                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(space(short_len),data.get('long'),_desc))
+                   sys.stdout.flush()
 
 
        #######################
        #Print Help(Main Design)
        #######################
-       if call or (Short and Short in self.args) or (Long and Long in self.args):
+       #if call or (Short and Short in self.argv) or (Long and Long in self.argv):
+       if call or (Short and Short in sys.argv) or (Long and Long in sys.argv):
            if self.cmd_id > 0 and not self.commands:
-                print("ERROR: defined extra command at SysArg(..,cmd_id=N).\nIt required defineing command with SysArg.define(...,group=<cmd name>,command=True)")
+                sys.stderr.write("ERROR: defined extra command at SysArg(..,cmd_id=N).\nIt required defineing command with SysArg.define(...,group=<cmd name>,command=True)\n")
+                sys.stderr.flush()
                 os._exit(1) 
 
            #Print Program
            if self.program:
                if self.option:
                    if self.commands:
-                       print('Usage: {} <command> [OPTION] [<args>]'.format(self.program))
+                       sys.stdout.write('Usage: {} <command> [OPTION] [<args>]\n'.format(self.program))
                    else:
-                       print('Usage: {} [OPTION] [<args>]'.format(self.program))
+                       sys.stdout.write('Usage: {} [OPTION] [<args>]\n'.format(self.program))
                else:
                    if self.commands:
-                       print('Usage: {} <command> [<args>]'.format(self.program))
+                       sys.stdout.write('Usage: {} <command> [<args>]\n'.format(self.program))
                    else:
-                       print('Usage: {} [<args>]'.format(self.program))
+                       sys.stdout.write('Usage: {} [<args>]\n'.format(self.program))
                if self.version:
-                   print('Version: {}'.format(self.version))
+                   sys.stdout.write('Version: {}\n'.format(self.version))
+               sys.stdout.flush()
 
            #Print Special Group Option
            if self.commands and self.cmd_id > 0 and len(self.argv) > self.cmd_id and self.argv[self.cmd_id] in self.commands:
                if self.group[self.argv[self.cmd_id]].get('command'):
                    if self.group[self.argv[self.cmd_id]].get('desc'):
                        _group_desc=tap_string(self.group[self.argv[self.cmd_id]]['desc'],nspace=short_len+long_len+desc_space)
-                       print('* %-{}s  %s'.format(short_len+long_len-2)%(self.argv[self.cmd_id],_group_desc))
+                       sys.stdout.write('* %-{}s  %s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id],_group_desc))
                    else:
-                       print('* %-{}s'.format(short_len+long_len-2)%(self.argv[self.cmd_id]))
+                       sys.stdout.write('* %-{}s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id]))
+                   sys.stdout.flush()
                for oo in self.group[self.argv[self.cmd_id]]:
                    print_option(self.group[self.argv[self.cmd_id]][oo])
                os._exit(0)
 
            #Print Desc
            if self.desc:
-               print(self.desc)
+               sys.stdout.write(self.desc)
+               sys.stdout.flush()
 
            #Commands Help
            if self.commands:
-               print('\nSupported <command>s are:')
+               sys.stdout.write('\nSupported <command>s are:\n')
                for cc in self.commands:
                    if self.group.get(cc,{}).get('desc'):
                        _group_desc=tap_string(self.group[cc]['desc'],nspace=short_len+long_len+desc_space)
                        if self.group.get(cc,{}).get('arg'): # required argument
-                           print('  %-{}s%s'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
+                           sys.stdout.write('  %-{}s%s\n'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
                        else:
-                           print('  %-{}s%s'.format(short_len+long_len)%(cc,_group_desc))
+                           sys.stdout.write('  %-{}s%s\n'.format(short_len+long_len)%(cc,_group_desc))
                    else:
-                       print('  %-{}s'.format(short_len+long_len)%(cc))
+                       sys.stdout.write('  %-{}s\n'.format(short_len+long_len)%(cc))
+                   sys.stdout.flush()
+               sys.stdout.flush()
 
-           #Print Help
-           print('\n[OPTION]')
+           sys.stdout.write('\n[OPTION]\n')
+           #Print Help Option
            _help_desc=tap_string(self.help_desc,nspace=short_len+long_len+desc_space)
            if Short and Long:
-               print('%{}s, %-{}s%s'.format(short_len,long_len)%(Short,Long,_help_desc))
+               sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(Short,Long,_help_desc))
            elif Long:
-               print('%s  %-{}s%s'.format(long_len)%(space(short_len),Long,_help_desc))
+               sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(space(short_len),Long,_help_desc))
            elif Short and Long:
-               print('%{}s  %s'.format(short_len)%(Short,space(long_len),_help_desc))
+               sys.stdout.write('%{}s  %s\n'.format(short_len)%(Short,space(long_len),_help_desc))
+           sys.stdout.flush()
             
-           #Print Option
+           #Print Regular Option
            for oo in self.option:
                print_option(self.option[oo])
 
            #Print Group Option
            for gg in self.group:
-               if self.group[gg].get('command'):
-                   #if command but no option then ignore
-                   if len(self.group[gg]) < 6: continue
-              #Make a same condition as normal group to command group
-              #     print()
-              #     if self.group[gg].get('desc'):
-              #         _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
-              #         print('* %-{}s  %s'.format(short_len+long_len-2)%(gg,_group_desc))
-              #     else:
-              #         print('* %-{}s'.format(short_len+long_len-2)%(gg))
-              # else:
-              #     print()
-              #     if self.group[gg].get('desc'):
-              #         _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
-              #         print('%-{}s%s'.format(short_len+long_len)%('[ {} ]'.format(gg),_group_desc))
-              #     else:
-              #         print('%-{}s'.format(short_len+long_len)%('[ {} ]'.format(gg)))
-               print()
-               if self.group[gg].get('desc'):
-                   _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
-                   print('%-{}s%s'.format(short_len+long_len)%(' * {}'.format(gg),_group_desc))
-               else:
-                   print('%-{}s'.format(short_len+long_len)%(' * {}'.format(gg)))
-               for oo in self.group[gg]:
-                   print_option(self.group[gg][oo])
+               #if command but no option then ignore
+               if len(self.group[gg]) > 3:
+                   print()
+                   if self.group[gg].get('desc'):
+                       _group_desc=tap_string(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
+                       sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(' * {}'.format(gg),_group_desc))
+                   else:
+                       sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(' * {}'.format(gg)))
+                   sys.stdout.flush()
+                   for oo in self.group[gg]:
+                       print_option(self.group[gg][oo])
 
            #Print Epilog
            if self.epilog:
@@ -549,3 +551,6 @@ defind()
             
     def Args(self):
         return self.__dict__.get('args')
+
+
+
