@@ -1,8 +1,23 @@
-
 import ast
 import os
 import re
 import sys
+import getpass
+
+def cli_input(msg,**opts):
+    hidden=opts.get('hidden',False)
+    if hidden:
+        if sys.stdin.isatty():
+            p = getpass.getpass(msg)
+        else:
+            printf(msg,end_line='')
+            p = sys.stdin.readline().rstrip()
+    else:
+        if sys.version_info[0] == '2':
+            p=raw_input(msg)
+        else:
+            p=input(msg)
+    return p
 
 def IsNone(inp,**opts):
     default=opts.get('default',opts.get('out',True))
@@ -117,6 +132,7 @@ defind()
         self.commands=[]
         self.version=opts.get('version')
         self.help_desc=opts.get('help_desc','Help') 
+        self.ask=opts.get('ask',False) 
 
     def error_exit(self,msg):
         sys.stderr.write('{}\n'.format(msg))
@@ -195,7 +211,15 @@ defind()
                         if ii.startswith('{}='.format(_long)):
                             __v__=TypeData(_type,ii.split('=')[1],_spliter)
                             if __v__ is False:
-                                self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_long,_type.__name___)) 
+                                if self.ask:
+                                    iii=cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
+                                    if not IsNone(iii):
+                                        __v__=TypeData(_type,iii,_spliter)
+                                        if __v__ is False:
+                                            self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
+                                        _value.append(__v__)
+                                else:
+                                    self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_long,_type.__name___)) 
                             _value.append(__v__)
                         else:
                             tt.append(ii)
@@ -210,7 +234,15 @@ defind()
                                         break
                                     __v__=TypeData(_type,self.args[jj],_spliter)
                                     if __v__ is False:
-                                        self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
+                                        if self.ask:
+                                            iii=cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
+                                            if not IsNone(iii):
+                                                __v__=TypeData(_type,iii,_spliter)
+                                                if __v__ is False:
+                                                    self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
+                                                _value.append(__v__)
+                                        else:
+                                            self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
                                     _value.append(__v__)
                                 break
                                 tt=tt+self.args[jj+1:]
@@ -220,7 +252,15 @@ defind()
                                         break
                                     __v__=TypeData(_type,self.args[ii+1+jj],_spliter)
                                     if __v__ is False:
-                                        self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
+                                        if self.ask:
+                                            iii=cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
+                                            if not IsNone(iii):
+                                                __v__=TypeData(_type,iii,_spliter)
+                                                if __v__ is False:
+                                                    self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
+                                                _value.append(__v__)
+                                        else:
+                                            self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__)) 
                                     _value.append(__v__)
                                 if len(_value) == _params:
                                     tt=tt+self.args[ii+jj+2:]
@@ -347,17 +387,27 @@ defind()
                     if IsNone(self.group[group][name].get('value')):
                         if IsNone(self.group[group][name].get('default')):
                             aa=self.group[group][name].get('long') if self.group[group][name].get('long') else self.group[group][name].get('short')
-                            sys.stdout.write('\n!! Missing required option "{}({})" of {} !!\n\n'.format(aa,name,group))
-                            sys.stdout.flush()
-                            self.Help(call=True)
+                            if self.ask:
+                                iii=cli_input('Missing "{}({})" parameter! Please type it:'.format(aa,name))
+                                if not IsNone(iii):
+                                    self.group[group][name]['value']=iii
+                            else:
+                                sys.stdout.write('\n!! Missing required option "{}({})" of {} !!\n\n'.format(aa,name,group))
+                                sys.stdout.flush()
+                                self.Help(call=True)
         for name in self.option:
             if self.option[name].get('required'):
                 if IsNone(self.option[name].get('value')):
                     if IsNone(self.option[name].get('default')):
-                        aa=self.group[group][name].get('long') if self.group[group][name].get('long') else self.group[group][name].get('short')
-                        sys.stdout.write('\n!! Missing required option "{}({})" !!\n\n'.format(name,aa))
-                        sys.stdout.flush()
-                        self.Help(call=True)
+                        aa=self.option[name].get('long') if self.option[name].get('long') else self.option[name].get('short')
+                        if self.ask:
+                            iii=cli_input('Missing "{}({})" parameter! Please type it:'.format(aa,name))
+                            if not IsNone(iii):
+                                self.option[name]['value']=iii
+                        else:
+                            sys.stdout.write('\n!! Missing required option "{}({})" !!\n\n'.format(name,aa))
+                            sys.stdout.flush()
+                            self.Help(call=True)
         
     def Version(self,version=None,call=False,new_line='\n'):
         if (version or self.version) and '--version' in sys.argv:
