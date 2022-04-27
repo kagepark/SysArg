@@ -122,12 +122,12 @@ defind()
                     tt=[]
                     for ii in self.args:
                         if ii.startswith('{}='.format(_long)):
-                            __v__=km.TypeData(_type,ii.split('=')[1],_spliter)
+                            __v__=km.TypeData(ii.split('=')[1],want_type=_type,spliter=_spliter)
                             if __v__ is False:
                                 if self.ask:
                                     iii=km.cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
                                     if not km.IsNone(iii):
-                                        __v__=km.TypeData(_type,iii,_spliter)
+                                        __v__=km.TypeData(iii,want_type=_type,spliter=_spliter)
                                         if __v__ is False:
                                             self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
                                         _value.append(__v__)
@@ -145,12 +145,12 @@ defind()
                                 for jj in range(ii+1,len(self.args)):
                                     if self.args[jj][0] == '-':
                                         break
-                                    __v__=km.TypeData(_type,self.args[jj],_spliter)
+                                    __v__=km.TypeData(self.args[jj],want_type=_type,spliter=_spliter)
                                     if __v__ is False:
                                         if self.ask:
                                             iii=km.cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
                                             if not km.IsNone(iii):
-                                                __v__=km.TypeData(_type,iii,_spliter)
+                                                __v__=km.TypeData(iii,want_type=_type,spliter=_spliter)
                                                 if __v__ is False:
                                                     self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
                                                 _value.append(__v__)
@@ -163,12 +163,12 @@ defind()
                                 for jj in range(0,_params):
                                     if self.args[ii+1+jj][0] == '-':
                                         break
-                                    __v__=km.TypeData(_type,self.args[ii+1+jj],_spliter)
+                                    __v__=km.TypeData(self.args[ii+1+jj],want_type=_type,spliter=_spliter)
                                     if __v__ is False:
                                         if self.ask:
                                             iii=km.cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
                                             if not km.IsNone(iii):
-                                                __v__=km.TypeData(_type,iii,_spliter)
+                                                __v__=km.TypeData(iii,want_type=_type,spliter=_spliter)
                                                 if __v__ is False:
                                                     self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
                                                 _value.append(__v__)
