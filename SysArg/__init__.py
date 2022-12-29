@@ -3,7 +3,7 @@ import getpass
 import os
 import re
 import sys
-import kmisc as km
+from kmport import *
 
 class SysArg:
     '''
@@ -74,7 +74,7 @@ defind()
         _cmd_id=opts.get('cmd_id',1)
         _combin=opts.get('combin',False)
         _hidden=opts.get('hidden',False)
-        if km.IsNone(name) and  not _command and not _arg:
+        if IsNone(name) and  not _command and not _arg:
             if _short:
                 self.error_exit('Required parameter name for option at {}'.format(_short))
             else:
@@ -122,12 +122,12 @@ defind()
                     tt=[]
                     for ii in self.args:
                         if ii.startswith('{}='.format(_long)):
-                            __v__=km.TypeData(ii.split('=')[1],want_type=_type,spliter=_spliter)
+                            __v__=TypeData(ii.split('=')[1],want_type=_type,spliter=_spliter)
                             if __v__ is False:
                                 if self.ask:
-                                    iii=km.cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
-                                    if not km.IsNone(iii):
-                                        __v__=km.TypeData(iii,want_type=_type,spliter=_spliter)
+                                    iii=cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
+                                    if not IsNone(iii):
+                                        __v__=TypeData(iii,want_type=_type,spliter=_spliter)
                                         if __v__ is False:
                                             self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
                                         _value.append(__v__)
@@ -145,12 +145,12 @@ defind()
                                 for jj in range(ii+1,len(self.args)):
                                     if self.args[jj][0] == '-':
                                         break
-                                    __v__=km.TypeData(self.args[jj],want_type=_type,spliter=_spliter)
+                                    __v__=TypeData(self.args[jj],want_type=_type,spliter=_spliter)
                                     if __v__ is False:
                                         if self.ask:
-                                            iii=km.cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
-                                            if not km.IsNone(iii):
-                                                __v__=km.TypeData(iii,want_type=_type,spliter=_spliter)
+                                            iii=cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
+                                            if not IsNone(iii):
+                                                __v__=TypeData(iii,want_type=_type,spliter=_spliter)
                                                 if __v__ is False:
                                                     self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
                                                 _value.append(__v__)
@@ -163,12 +163,12 @@ defind()
                                 for jj in range(0,_params):
                                     if self.args[ii+1+jj][0] == '-':
                                         break
-                                    __v__=km.TypeData(self.args[ii+1+jj],want_type=_type,spliter=_spliter)
+                                    __v__=TypeData(self.args[ii+1+jj],want_type=_type,spliter=_spliter)
                                     if __v__ is False:
                                         if self.ask:
-                                            iii=km.cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
-                                            if not km.IsNone(iii):
-                                                __v__=km.TypeData(iii,want_type=_type,spliter=_spliter)
+                                            iii=cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
+                                            if not IsNone(iii):
+                                                __v__=TypeData(iii,want_type=_type,spliter=_spliter)
                                                 if __v__ is False:
                                                     self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
                                                 _value.append(__v__)
@@ -273,7 +273,7 @@ defind()
         def Val(data,mode='auto'):
             if isinstance(data,dict):
                 vv=data.get('value')
-                if km.IsNone(vv):
+                if IsNone(vv):
                     vv=data.get('default')
                 if data.get('select'):
                     if vv in data.get('select'):
@@ -304,18 +304,18 @@ defind()
                 rt[group]={}
                 for o in self.group[group]:
                     if isinstance(self.group[group][o],dict):
-                        rt[group][o]=km.IsNone(Val(self.group[group][o]),out=None)
+                        rt[group][o]=IsNone(Val(self.group[group][o]),out=None)
             return rt
     def Check(self,group=None):
         if group and group in self.group:
             for name in self.group[group]:
                 if isinstance(self.group[group][name],dict) and self.group[group][name].get('required'):
-                    if km.IsNone(self.group[group][name].get('value')):
-                        if km.IsNone(self.group[group][name].get('default')):
+                    if IsNone(self.group[group][name].get('value')):
+                        if IsNone(self.group[group][name].get('default')):
                             aa=self.group[group][name].get('long') if self.group[group][name].get('long') else self.group[group][name].get('short')
                             if self.ask:
-                                iii=km.cli_input('Missing "{}({})" parameter! Please type it:'.format(aa,name))
-                                if not km.IsNone(iii):
+                                iii=cli_input('Missing "{}({})" parameter! Please type it:'.format(aa,name))
+                                if not IsNone(iii):
                                     self.group[group][name]['value']=iii
                             else:
                                 sys.stdout.write('\n!! Missing required option "{}({})" of {} !!\n\n'.format(aa,name,group))
@@ -323,12 +323,12 @@ defind()
                                 self.Help(call=True,command=group)
         for name in self.option:
             if self.option[name].get('required'):
-                if km.IsNone(self.option[name].get('value')):
-                    if km.IsNone(self.option[name].get('default')):
+                if IsNone(self.option[name].get('value')):
+                    if IsNone(self.option[name].get('default')):
                         aa=self.option[name].get('long') if self.option[name].get('long') else self.option[name].get('short')
                         if self.ask:
-                            iii=km.cli_input('Missing "{}({})" parameter! Please type it:'.format(aa,name))
-                            if not km.IsNone(iii):
+                            iii=cli_input('Missing "{}({})" parameter! Please type it:'.format(aa,name))
+                            if not IsNone(iii):
                                 self.option[name]['value']=iii
                         else:
                             sys.stdout.write('\n!! Missing required option "{}({})" !!\n\n'.format(name,aa))
@@ -395,13 +395,13 @@ defind()
                        else:
                            _desc=_desc+'(input:{0}1 {0}2 ...)'.format(s)
            if _desc:
-               return km.WrapString(_desc,nspace=nspace)
+               return WrapString(_desc,nspace=nspace)
            return ''
        #######################
        #Option Design
        #######################
        def print_option(data):
-           force=km.Var(self.SysArg_hidden_show,False)
+           force=Variable(self.SysArg_hidden_show,False,'all')
            if isinstance(data,dict):
                if not force and data.get('hidden'): return
                _desc=mk_desc(data.get('desc'),default=data.get('default'),required=data.get('required'),nspace=short_len+long_len+desc_space,_type=data.get('type'),_params=data.get('params'),_params_name=data.get('params_name'),_spliter=data.get('spliter'),_select=data.get('select'))
@@ -420,13 +420,13 @@ defind()
                        sss=long_len-(len(data.get('short'))-short_len)
                    else:
                        sss=long_len
-                   sys.stdout.write('%{}s  %s%s\n'.format(short_len)%(data.get('short'),km.Space(sss),_desc))
+                   sys.stdout.write('%{}s  %s%s\n'.format(short_len)%(data.get('short'),Space(sss),_desc))
                    sys.stdout.flush()
                elif data.get('long'):
                    if data.get('params_name'):
-                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(km.Space(short_len),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
+                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
                    else:
-                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(km.Space(short_len),data.get('long'),_desc))
+                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),data.get('long'),_desc))
                    sys.stdout.flush()
        # If exist command then print help for the command only (show all)
        if Short in self.args:
@@ -447,7 +447,7 @@ defind()
                        sys.stdout.write('Usage: {} {} [OPTION] [<args>]\n'.format(self.program,command))
                        print()
                        if self.group[command].get('desc'):
-                           _group_desc=km.WrapString(self.group[command]['desc'],nspace=short_len+long_len+desc_space)
+                           _group_desc=WrapString(self.group[command]['desc'],nspace=short_len+long_len+desc_space)
                            sys.stdout.write(' %s\n'%(_group_desc))
                        sys.stdout.write('\n[OPTION]\n')
                        #Print regular/global option
@@ -468,7 +468,7 @@ defind()
                        for gg in self.group:
                            if not self.group[gg].get('command'):
                                if self.group[gg].get('desc'):
-                                   _group_desc=km.WrapString(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
+                                   _group_desc=WrapString(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
                                    sys.stdout.write('\n%-{}s%s\n'.format(short_len+long_len)%(' * {}'.format(gg),_group_desc))
                                else:
                                    sys.stdout.write('\n%-{}s\n'.format(short_len+long_len)%(' * {}'.format(gg)))
@@ -482,7 +482,7 @@ defind()
        #Print Help(Main Design)
        #######################
        #if call or (Short and Short in self.argv) or (Long and Long in self.argv):
-       if call or km.IsSame(km.Get(self.args,0),Short)  or km.IsSame(km.Get(self.args,0),Long):
+       if call or IsSame(Get(self.args,0),Short)  or IsSame(Get(self.args,0),Long):
            if self.cmd_id > 0 and not self.commands:
                 sys.stderr.write("ERROR: defined extra command at SysArg(..,cmd_id=N).\nIt required defineing command with SysArg.define(...,group=<cmd name>,command=True)\n")
                 sys.stderr.flush()
@@ -506,7 +506,7 @@ defind()
            if self.commands and self.cmd_id > 0 and len(self.argv) > self.cmd_id and self.argv[self.cmd_id] in self.commands:
                if self.group[self.argv[self.cmd_id]].get('command'):
                    if self.group[self.argv[self.cmd_id]].get('desc'):
-                       _group_desc=km.WrapString(self.group[self.argv[self.cmd_id]]['desc'],nspace=short_len+long_len+desc_space)
+                       _group_desc=WrapString(self.group[self.argv[self.cmd_id]]['desc'],nspace=short_len+long_len+desc_space)
                        sys.stdout.write('* %-{}s  %s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id],_group_desc))
                    else:
                        sys.stdout.write('* %-{}s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id]))
@@ -518,14 +518,14 @@ defind()
            if self.desc:
                sys.stdout.write(self.desc+'\n')
                sys.stdout.flush()
-           force=km.Var(self.SysArg_hidden_show,False)
+           force=Variable(self.SysArg_hidden_show,False,'all')
            #Supported Commands display Description
            if self.commands:
                sys.stdout.write('\nSupported <command>s are:\n')
                for cc in self.commands:
                    if not force and self.group.get(cc,{}).get('hidden'): continue
                    if self.group.get(cc,{}).get('desc') :
-                       _group_desc=km.WrapString(self.group[cc]['desc'],nspace=short_len+long_len+desc_space)
+                       _group_desc=WrapString(self.group[cc]['desc'],nspace=short_len+long_len+desc_space)
                        if self.group.get(cc,{}).get('arg'): # required argument
                            sys.stdout.write('  %-{}s%s\n'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
                        else:
@@ -536,13 +536,13 @@ defind()
                sys.stdout.flush()
            sys.stdout.write('\n[OPTION]\n')
            #Print Help Option
-           _help_desc=km.WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
+           _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
            if Short and Long:
                sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(Short,Long,_help_desc))
            elif Long:
-               sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(km.Space(short_len),Long,_help_desc))
+               sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),Long,_help_desc))
            elif Short and Long:
-               sys.stdout.write('%{}s  %s\n'.format(short_len)%(Short,km.Space(long_len),_help_desc))
+               sys.stdout.write('%{}s  %s\n'.format(short_len)%(Short,Space(long_len),_help_desc))
            sys.stdout.flush()
            #Print Regular Option
            for oo in self.option:
@@ -554,7 +554,7 @@ defind()
                if len(self.group[gg]) >= 3 and (not group_hidden or force):
                    print()
                    if self.group[gg].get('desc'):
-                       _group_desc=km.WrapString(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
+                       _group_desc=WrapString(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
                        sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(' * {}'.format(gg),_group_desc))
                    else:
                        sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(' * {}'.format(gg)))
