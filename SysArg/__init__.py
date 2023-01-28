@@ -47,6 +47,7 @@ defind()
         self.help_desc=opts.get('help_desc','Help')
         self.ask=opts.get('ask',False)
         self.SysArg_hidden_show=opts.get('SysArg_hidden_show','SysArg_hidden_show')
+        self.gtmp={}
     def error_exit(self,msg):
         sys.stderr.write('{}\n'.format(msg))
         sys.stderr.flush()
@@ -79,26 +80,43 @@ defind()
                 self.error_exit('Required parameter name for option at {}'.format(_short))
             else:
                 self.error_exit('Required parameter name for option at {}'.format(_long))
-        _value=[]
+        # Filter wrong ordering
+        if _command and _group in self.group:
+            self.error_exit('ERROR: Please define command group first\n  0. arg=SysArg.SysArg()\n  1. Define command group\n  2. Global options\n  3. Group Options')
+
         # location parameter(value)
+        _value=[]
         if not _short and not _long and len(self.argv) > _params:
             _value=self.argv[_params]
             if not _command and _value in self.args: self.args.remove(_value)
         else:
-            # Check same option
+            # Filter for any option in global option
             for cc in self.option:
                 if _short and self.option[cc].get('short') == _short:
-                    self.error_exit('ERROR: Already "{} of {}" defined at {}'.format(_short,name,cc))
+                    self.error_exit('ERROR: Already "{} of {}" defined at global option {}'.format(_short,name,cc))
                 if _long and self.option[cc].get('long') == _long:
-                    self.error_exit('ERROR: Already "{} of {}" defined at {}'.format(_long,name,cc))
-            # Check same option in each group
+                    self.error_exit('ERROR: Already "{} of {}" defined at global option {}'.format(_long,name,cc))
+            # Filter for global option in group option
+            # or
+            # Filter for not command group option in other command group option
+            if not _group or (not _command and _group and _group not in self.commands):
+                mm='global' if not _group else '''group {}'s'''.format(_group)
+                for gg in self.group:
+                    for cc in self.group[gg]:
+                        if not isinstance(self.group[gg][cc],dict): continue
+                        if _short and self.group[gg][cc].get('short') == _short:
+                            self.error_exit('''ERROR: Already {} "{} of {}" defined at {} in group {}'''.format(mm,_short,name,cc,gg))
+                        if _long and self.group[gg][cc].get('long') == _long:
+                            self.error_exit('''ERROR: Already {} "{} of {}" defined at {} in group {}'''.format(mm,_long,name,cc,gg))
+            # Filter for group option in same group option
             if _group in self.group:
                 for cc in self.group[_group]:
                     if not isinstance(self.group[_group][cc],dict): continue
                     if _short and self.group[_group][cc].get('short') == _short:
-                        self.error_exit('ERROR: Already "{} of {}" defined at {} in {}'.format(_short,name,cc,_group))
+                        self.error_exit('ERROR: Already "{} of {}" defined at {} in same group {}'.format(_short,name,cc,_group))
                     if _long and self.group[_group][cc].get('long') == _long:
-                        self.error_exit('ERROR: Already "{} of {}" defined at {} in {}'.format(_long,name,cc,_group))
+                        self.error_exit('ERROR: Already "{} of {}" defined at {} in same group {}'.format(_long,name,cc,_group))
+
             # Check parameter
             if _params == 0:
                 if _long in self.args:
@@ -198,7 +216,6 @@ defind()
                         self.group[_group]['select']=_select
                         if not self.__dict__.get('args'):
                             if _default: self.group[_group]['value']=_default
-                        #elif self.__dict__.get('args')[0] in _select:
                         else: #put any data (even if wrong data)
                             self.group[_group]['value']=self.__dict__.get('args')[0]
                             del self.__dict__['args'][0]
@@ -207,6 +224,21 @@ defind()
                             self.group[_group]['value']=self.__dict__.get('args')[0]
                             del self.__dict__['args'][0]
             else:
+                #Temporary save value at global for command group data
+                if self.argv[0] != self.Cmd() and _group in self.commands:
+                    if _value:
+                        self.gtmp[_group]={'short':_short,'long':_long,'value':_value}
+                        _value=[]
+                    #If same command and group then put the data to my group
+                    if _group == self.Cmd():
+                        __value=[]
+                        for gg in self.gtmp:
+                            if _short == self.gtmp[gg]['short'] or _long == self.gtmp[gg]['long']:
+                                __value=self.gtmp[gg]['value']
+                                break
+                        if __value:
+                            self.gtmp.pop(gg)
+                            _value=__value
                 self.group[_group][name]={
                     'short':_short,
                     'long':_long,
