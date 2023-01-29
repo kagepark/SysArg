@@ -1,8 +1,8 @@
-import ast
-import getpass
 import os
 import re
+import ast
 import sys
+import getpass
 from kmport import *
 
 class SysArg:
@@ -34,6 +34,7 @@ defind()
         else:
             self.argv=tuple(args[:])
             self.args=list(args[:])
+        self.argo=[]
         self.program=opts.get('program')
         self.cmd_id=opts.get('cmd_id',0)
         if len(self.args) > self.cmd_id:
@@ -88,7 +89,9 @@ defind()
         _value=[]
         if not _short and not _long and len(self.argv) > _params:
             _value=self.argv[_params]
-            if not _command and _value in self.args: self.args.remove(_value)
+            if not _command and _value in self.args:
+                if _value not in self.argo: self.argo.append(_value)
+                self.args.remove(_value)
         else:
             # Filter for any option in global option
             for cc in self.option:
@@ -121,18 +124,23 @@ defind()
             if _params == 0:
                 if _long in self.args:
                     _value=True
+                    if _long not in self.argo: self.argo.append(_long)
                     self.args.remove(_long)
                 elif _short:
                     if _short in self.args:
                         _value=True
+                        if _short not in self.argo: self.argo.append(_short)
                         self.args.remove(_short)
                     elif _combin: # check combin data in short
                         for ii in range(0,len(self.args)):
                             if re.match(r'-[a-zA-Z0-9]',self.args[ii]):
                                 if _short[1:] in self.args[ii]:
-                                    _value=True
-                                    i=self.args[ii].index(_short[1:])
-                                    self.args[ii]=self.args[ii][:i]+self.args[ii][i+len(_short[1:]):]
+                                    #Global's combin short option(not _group) or command's short option of combin(_group == self.argv[_cmd_id])
+                                    if not _group or _group == self.argv[_cmd_id]:
+                                        _value=True
+                                        i=self.args[ii].index(_short[1:])
+                                        self.args[ii]=self.args[ii][:i]+self.args[ii][i+len(_short[1:]):]
+                                        if _short not in self.argo: self.argo.append(_short)
             # Input parameter
             else:
                 if _long and _params_name:
@@ -278,7 +286,8 @@ defind()
             if name in self.commands:
                 if sys_argvn > self.commands[name] and sys.argv[self.commands[name]] == name:
                     self.Check(group=name)
-                    if len(self.args) > self.commands[name] and self.args[self.commands[name]-1] == name: del self.args[self.commands[name]-1]
+                    if len(self.args) > self.commands[name] and self.args[self.commands[name]-1] == name:
+                        del self.args[self.commands[name]-1]
                     return True
             else:
                 if sys_argvn > self.cmd_id and sys.argv[self.cmd_id] == name:
@@ -288,7 +297,8 @@ defind()
         # What is currently my command?
         for i in self.commands:
             if sys_argvn > self.commands[i] and sys.argv[self.commands[i]] == i:
-                if len(self.args) > self.commands[i] and self.args[self.commands[i]-1] == i: del self.args[self.commands[i]-1]
+                if len(self.args) > self.commands[i] and self.args[self.commands[i]-1] == i:
+                    del self.args[self.commands[i]-1]
                 self.Check(group=i)
                 return i
         if cmd_group:
@@ -296,7 +306,8 @@ defind()
         else:
             if self.cmd_id < sys_argvn:
                 self.Check(group=self.argv[self.cmd_id])
-                if len(self.args) > self.cmd_id and self.args[self.cmd_id] == self.argv[self.cmd_id]: del self.args[self.cmd_id]
+                if len(self.args) > self.cmd_id and self.args[self.cmd_id] == self.argv[self.cmd_id]:
+                    del self.args[self.cmd_id]
                 return self.argv[self.cmd_id]
             else:
                 print(':: Require some command, check cmd_id=N in SysArg()\n')
@@ -433,7 +444,7 @@ defind()
        #Option Design
        #######################
        def print_option(data):
-           force=Variable(self.SysArg_hidden_show,False,'all')
+           force=Variable(self.SysArg_hidden_show,default=False,mode='all')
            if isinstance(data,dict):
                if not force and data.get('hidden'): return
                _desc=mk_desc(data.get('desc'),default=data.get('default'),required=data.get('required'),nspace=short_len+long_len+desc_space,_type=data.get('type'),_params=data.get('params'),_params_name=data.get('params_name'),_spliter=data.get('spliter'),_select=data.get('select'))
@@ -461,14 +472,14 @@ defind()
                        sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),data.get('long'),_desc))
                    sys.stdout.flush()
        # If exist command then print help for the command only (show all)
-       if Short in self.args:
-           ii=self.args.index(Short)
+       if Short in self.argv:
+           ii=self.argv.index(Short)
            if ii > 0:
-               command=self.args[ii-1]
-       if Long in self.args:
-           ii=self.args.index(Long)
+               command=self.argv[ii-1]
+       if Long in self.argv:
+           ii=self.argv.index(Long)
            if ii> 0:
-               command=self.args[ii-1]
+               command=self.argv[ii-1]
        if command:
            if command in self.group:
                #if command but no option then ignore
@@ -550,7 +561,7 @@ defind()
            if self.desc:
                sys.stdout.write(self.desc+'\n')
                sys.stdout.flush()
-           force=Variable(self.SysArg_hidden_show,False,'all')
+           force=Variable(self.SysArg_hidden_show,default=False,mode='all')
            #Supported Commands display Description
            if self.commands:
                sys.stdout.write('\nSupported <command>s are:\n')
@@ -597,8 +608,21 @@ defind()
            if self.epilog:
                print(self.epilog)
            os._exit(0)
-    def Args(self):
+    def Args(self,syms=[]):
+        tt=[]
+        for ii in self.__dict__.get('args'):
+            c=True
+            for i in syms:
+                if re.search('^{}\w+'.format(i),ii):
+                    if ii not in self.argo: self.argo.append(ii)
+                    c=False
+                    break
+            if c: tt.append(ii)
+        if tt and tt != self.__dict__.get('args'):
+            self.__dict__['args']=tt
         return self.__dict__.get('args')
+    def ArgO(self): # Others
+        return self.__dict__.get('argo')
     def Opts(self,name=None,get_true=False,combin=False):
         out={}
         o=self.__dict__.get('option',{})
@@ -615,7 +639,8 @@ defind()
         if combin:
             m=''
             for i in out.keys():
-                m=m+i[1:]
-            return '-{}'.format(m)
+                if len(i) == 2:
+                    m=m+i[1:]
+            if m: return '-{}'.format(m)
         return out
 
