@@ -1,8 +1,6 @@
 import os
 import re
-import ast
 import sys
-import getpass
 from kmport import *
 
 class SysArg:
@@ -35,6 +33,7 @@ defind()
             self.argv=tuple(args[:])
             self.args=list(args[:])
         self.argo=[]
+        self.combins=[]
         self.program=opts.get('program')
         self.cmd_id=opts.get('cmd_id',0)
         if len(self.args) > self.cmd_id:
@@ -133,6 +132,7 @@ defind()
                         self.args.remove(_short)
                     elif _combin: # check combin data in short
                         for ii in range(0,len(self.args)):
+                            cc=False
                             if re.match(r'-[a-zA-Z0-9]',self.args[ii]):
                                 if _short[1:] in self.args[ii]:
                                     #Global's combin short option(not _group) or command's short option of combin(_group == self.argv[_cmd_id])
@@ -140,7 +140,9 @@ defind()
                                         _value=True
                                         i=self.args[ii].index(_short[1:])
                                         self.args[ii]=self.args[ii][:i]+self.args[ii][i+len(_short[1:]):]
+                                        cc=True
                                         if _short not in self.argo: self.argo.append(_short)
+                                if cc: self.combins.append(self.args[ii])
             # Input parameter
             else:
                 if _long and _params_name:
@@ -623,7 +625,7 @@ defind()
         return self.__dict__.get('args')
     def ArgO(self): # Others
         return self.__dict__.get('argo')
-    def Opts(self,name=None,get_true=False,combin=False):
+    def Opts(self,name=None,get_true=False,combin=False,extra=False):
         out={}
         o=self.__dict__.get('option',{})
         for i in o:
@@ -641,6 +643,11 @@ defind()
             for i in out.keys():
                 if len(i) == 2:
                     m=m+i[1:]
+            if extra:
+                for i in self.combins:
+                    for j in list(i):
+                        if j=='-' or j in m: continue
+                        m=m+j
             if m: return '-{}'.format(m)
         return out
 
