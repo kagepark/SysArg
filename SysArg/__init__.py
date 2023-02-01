@@ -331,7 +331,7 @@ defind()
                 return vv
         if group and group in self.group:
             if name:
-                return Val(self.group[group][name])
+                return Val(self.group[group].get(name))
             return Val(self.group[group])
         elif name in self.option:
             return Val(self.option[name])
@@ -352,6 +352,8 @@ defind()
                         rt[group][o]=IsNone(Val(self.group[group][o]),out=None)
             return rt
     def Check(self,group=None):
+        if '--help' in self.argv:
+            return
         if group and group in self.group:
             for name in self.group[group]:
                 if isinstance(self.group[group][name],dict) and self.group[group][name].get('required'):
@@ -476,11 +478,11 @@ defind()
        # If exist command then print help for the command only (show all)
        if Short in self.argv:
            ii=self.argv.index(Short)
-           if ii > 0:
+           if ii > 1:
                command=self.argv[ii-1]
        if Long in self.argv:
            ii=self.argv.index(Long)
-           if ii> 0:
+           if ii> 1:
                command=self.argv[ii-1]
        if command:
            if command in self.group:
@@ -500,10 +502,11 @@ defind()
                            print_option(self.option[oo])
                    #normal group
                    else:
+                       tt_str=' * {}'.format(command) if self.group[command].get('command') else '[ {} ]'.format(command)
                        if self.group[command].get('desc'):
-                           sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(' * {}'.format(command),_group_desc))
+                           sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
                        else:
-                           sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(' * {}'.format(command)))
+                           sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(tt_str))
                    sys.stdout.flush()
                    #Print group/local option
                    for oo in self.group[command]:
@@ -514,9 +517,9 @@ defind()
                            if not self.group[gg].get('command'):
                                if self.group[gg].get('desc'):
                                    _group_desc=WrapString(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
-                                   sys.stdout.write('\n%-{}s%s\n'.format(short_len+long_len)%(' * {}'.format(gg),_group_desc))
+                                   sys.stdout.write('\n%-{}s%s\n'.format(short_len+long_len)%('[ {} ]'.format(gg),_group_desc))
                                else:
-                                   sys.stdout.write('\n%-{}s\n'.format(short_len+long_len)%(' * {}'.format(gg)))
+                                   sys.stdout.write('\n%-{}s\n'.format(short_len+long_len)%('[ {} ]'.format(gg)))
                                for oo in self.group[gg]:
                                    print_option(self.group[gg][oo])
                    os._exit(0)
@@ -552,9 +555,9 @@ defind()
                if self.group[self.argv[self.cmd_id]].get('command'):
                    if self.group[self.argv[self.cmd_id]].get('desc'):
                        _group_desc=WrapString(self.group[self.argv[self.cmd_id]]['desc'],nspace=short_len+long_len+desc_space)
-                       sys.stdout.write('* %-{}s  %s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id],_group_desc))
+                       sys.stdout.write('1* %-{}s  %s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id],_group_desc))
                    else:
-                       sys.stdout.write('* %-{}s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id]))
+                       sys.stdout.write('2* %-{}s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id]))
                    sys.stdout.flush()
                for oo in self.group[self.argv[self.cmd_id]]:
                    print_option(self.group[self.argv[self.cmd_id]][oo])
@@ -597,12 +600,13 @@ defind()
                #if command but no option/hidden then ignore
                group_hidden=self.group[gg].pop('hidden') if 'hidden' in self.group[gg] else None
                if len(self.group[gg]) >= 3 and (not group_hidden or force):
+                   tt_str=' * {}'.format(gg) if self.group[gg].get('command') else '[ {} ]'.format(gg)
                    print()
                    if self.group[gg].get('desc'):
                        _group_desc=WrapString(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
-                       sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(' * {}'.format(gg),_group_desc))
+                       sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
                    else:
-                       sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(' * {}'.format(gg)))
+                       sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(tt_str))
                    sys.stdout.flush()
                    for oo in self.group[gg]:
                        print_option(self.group[gg][oo])
