@@ -83,7 +83,6 @@ defind()
         # Filter wrong ordering
         if _command and _group in self.group:
             self.error_exit('ERROR: Please define command group first\n  0. arg=SysArg.SysArg()\n  1. Define command group\n  2. Global options\n  3. Group Options')
-
         # location parameter(value)
         _value=[]
         if not _short and not _long and len(self.argv) > _params:
@@ -118,7 +117,6 @@ defind()
                         self.error_exit('ERROR: Already "{} of {}" defined at {} in same group {}'.format(_short,name,cc,_group))
                     if _long and self.group[_group][cc].get('long') == _long:
                         self.error_exit('ERROR: Already "{} of {}" defined at {} in same group {}'.format(_long,name,cc,_group))
-
             # Check parameter
             if _params == 0:
                 if _long in self.args:
@@ -329,15 +327,14 @@ defind()
                     if isinstance(vv,list) and len(vv) == 1:
                         return vv[0]
                 return vv
-        if group and group in self.group:
-            if name:
+        if name:
+            if group and group in self.group:
                 return Val(self.group[group].get(name))
-            return Val(self.group[group])
-        elif name in self.option:
-            return Val(self.option[name])
+            elif name in self.option:
+                return Val(self.option[name])
         else:
             rt={}
-            if not name and not group:
+            if not group:
                 for o in self.option:
                     rt[o]=Val(self.option[o])
                 for g in self.group:
@@ -345,11 +342,12 @@ defind()
                     for o in self.group[g]:
                         if isinstance(self.group[g][o],dict):
                             rt[g][o]=Val(self.group[g][o])
-            elif not name and group and group in self.group:
-                rt[group]={}
+            elif group and group in self.group:
+                #rt[group]={}
                 for o in self.group[group]:
-                    if isinstance(self.group[group][o],dict):
-                        rt[group][o]=IsNone(Val(self.group[group][o]),out=None)
+                    rt[o]=Val(self.group[group][o])
+#                    if isinstance(self.group[group][o],dict):
+#                        rt[group][o]=IsNone(Val(self.group[group][o]),out=None)
             return rt
     def Check(self,group=None):
         if '--help' in self.argv:
@@ -627,8 +625,23 @@ defind()
         if tt and tt != self.__dict__.get('args'):
             self.__dict__['args']=tt
         return self.__dict__.get('args')
-    def ArgO(self): # Others
-        return self.__dict__.get('argo')
+    def ArgO(self,find=None,merge=True): # Others
+        if find:
+            if len(find) > 2:
+                if find[:2] == '--': merge=False
+            for i in self.__dict__.get('argo'):
+                if merge:
+                    if find[0] == '-': find=find[1:]
+                    if len(i) > 1:
+                        if i[1] != '-':
+                            if find in i[1:]:
+                                return True
+                else:
+                    if i == find:
+                        return True
+            return False
+        else:
+            return self.__dict__.get('argo')
     def Opts(self,name=None,get_true=False,combin=False,extra=False):
         out={}
         o=self.__dict__.get('option',{})
@@ -654,4 +667,3 @@ defind()
                         m=m+j
             if m: return '-{}'.format(m)
         return out
-
