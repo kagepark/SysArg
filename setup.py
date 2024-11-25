@@ -30,7 +30,7 @@ def lib_ver():
             return ver_a[1]
     return 1.0
 
-pkg_name='SysArg'
+pkg_name='sysarg'
 pkg_desc='CLI Argument Parser'
 pkg_git="https://github.com/kagepark/SysArg"
 long_description=''
