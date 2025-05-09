@@ -3,394 +3,657 @@ import re
 import sys
 from kmport import *
 
+#redesigned main structure
+#version 2.x
+#Kage Park
 class SysArg:
-    '''
-SysArg()
-  program: Program name
-  desc: Program Description
-  epilog: Program Epilog (tail string of the help)
-  help_desc: special Help description
-defind()
-  name: (required) parameter name
-  short: short parameter(-XX)
-  long: long parameter(--XX)
-  params: 
-     default:0(found parameter then True), 
-     0<n: how many required parameter input data(number)
-     - : until next parameter or until finished inputs
-  params_name: --abc=<PARAMS_NAME(Explain String)> (this format)
-  required: required parameter (default False, need then True)
-  default: default value when no input
-  type: default str, if you want int value then change to int, wrong type then not taken
-  group: make a special group's prameters
-  group_desc: group desciption
-    '''
     def __init__(self,*args,**opts):
-        if not args:
-            self.argv=tuple(sys.argv[:])
-            self.args=sys.argv[:]
-        else:
-            self.argv=tuple(args[:])
-            self.args=list(args[:])
-        self.argo=[]
-        self.combins=[]
-        self.program=opts.get('program')
-        self.cmd_id=opts.get('cmd_id',0)
-        if len(self.args) > self.cmd_id:
-            del self.args[self.cmd_id]
+        self.program=opts.get('program','APP')
         self.desc=opts.get('desc')
-        self.epilog=opts.get('epilog')
-        self.option={}
-        self.group={}
-        self.commands={}
         self.version=opts.get('version')
+        self.epilog=opts.get('epilog')
         self.help_desc=opts.get('help_desc','Help')
-        self.ask=opts.get('ask',False)
+        self.help_tag=opts.get('help_tag',['-h','--help'])
+        self.support_unknown_option=opts.get('support_unknown',opts.get('support_unknown_option',False))
         self.SysArg_hidden_show=opts.get('SysArg_hidden_show','SysArg_hidden_show')
-        self.gtmp={}
-    def error_exit(self,msg):
-        sys.stderr.write('{}\n'.format(msg))
-        sys.stderr.flush()
-        os._exit(1)
-    def define(self,name=None,**opts):
-        if name in self.option:
-            self.error_exit('Already defined "{}" parameter name'.format(name))
-        _short=opts.get('short')
-        _long=opts.get('long')
-        _params_name=opts.get('params_name') # something : --time=SOMETHING, None: --time WORD
-        if _params_name:
-            _params=1
+        if not isinstance(self.help_tag,list):
+            self.help_tag=[self.help_tag]
+        self.version_tag=opts.get('version_tag',['-v','--version'])
+        if not isinstance(self.version_tag,list):
+            self.version_tag=[self.version_tag]
+        if not args:
+            #Copy original
+            self.argv=tuple(sys.argv[:])
+            #Copy to work
+            self.args=list(sys.argv[:])
         else:
-            _params=opts.get('params',0) #how many parameters
-        _type=opts.get('type',str) #Data type
-        _desc=opts.get('desc')
-        _default=opts.get('default')
-        _group=opts.get('group')
-        _group_desc=opts.get('group_desc')
-        _required=opts.get('required',False)
-        _command=opts.get('command',False)
-        _select=opts.get('select',[])
-        _spliter=opts.get('spliter',None) #list or tuple case but input is string
-        _arg=opts.get('arg',False)
-        _cmd_id=opts.get('cmd_id',1)
-        _combin=opts.get('combin',False)
-        _hidden=opts.get('hidden',False)
-        if IsNone(name) and  not _command and not _arg:
-            if _short:
-                self.error_exit('Required parameter name for option at {}'.format(_short))
-            else:
-                self.error_exit('Required parameter name for option at {}'.format(_long))
-        # Filter wrong ordering
-        if _command and _group in self.group:
-            self.error_exit('ERROR: Please define command group first\n  0. arg=SysArg.SysArg()\n  1. Define command group\n  2. Global options\n  3. Group Options')
-        # location parameter(value)
-        _value=[]
-        if not _short and not _long and len(self.argv) > _params:
-            _value=self.argv[_params]
-            if not _command and _value in self.args:
-                if _value not in self.argo: self.argo.append(_value)
-                self.args.remove(_value)
+            #Copy original
+            self.argv=tuple(args[:])
+            #Copy to work
+            self.args=list(args[:])
+
+        self.default_command_id=opts.get('default_command_id',self.args.index(self.SelfFilename()))
+        self.groups={}
+        self.argo=[]
+        self.run_command=None
+
+    def SelfFilename(self,path=None):
+        if getattr(sys,'frozen',False):
+            if path in ['basename','filename']:
+                return os.path.basename(sys.executable)
+            elif path in ['full','abs','absolut']:
+                return sys.executable
         else:
-            # Filter for any option in global option
-            for cc in self.option:
-                if _short and self.option[cc].get('short') == _short:
-                    self.error_exit('ERROR: Already "{} of {}" defined at global option {}'.format(_short,name,cc))
-                if _long and self.option[cc].get('long') == _long:
-                    self.error_exit('ERROR: Already "{} of {}" defined at global option {}'.format(_long,name,cc))
-            # Filter for global option in group option
-            # or
-            # Filter for not command group option in other command group option
-            if not _group or (not _command and _group and _group not in self.commands):
-                mm='global' if not _group else '''group {}'s'''.format(_group)
-                for gg in self.group:
-                    for cc in self.group[gg]:
-                        if not isinstance(self.group[gg][cc],dict): continue
-                        if _short and self.group[gg][cc].get('short') == _short:
-                            self.error_exit('''ERROR: Already {} "{} of {}" defined at {} in group {}'''.format(mm,_short,name,cc,gg))
-                        if _long and self.group[gg][cc].get('long') == _long:
-                            self.error_exit('''ERROR: Already {} "{} of {}" defined at {} in group {}'''.format(mm,_long,name,cc,gg))
-            # Filter for group option in same group option
-            if _group in self.group:
-                for cc in self.group[_group]:
-                    if not isinstance(self.group[_group][cc],dict): continue
-                    if _short and self.group[_group][cc].get('short') == _short:
-                        self.error_exit('ERROR: Already "{} of {}" defined at {} in same group {}'.format(_short,name,cc,_group))
-                    if _long and self.group[_group][cc].get('long') == _long:
-                        self.error_exit('ERROR: Already "{} of {}" defined at {} in same group {}'.format(_long,name,cc,_group))
-            # Check parameter
-            if _params == 0:
-                if _long in self.args:
-                    _value=True
-                    if _long not in self.argo: self.argo.append(_long)
-                    self.args.remove(_long)
-                elif _short:
-                    if _short in self.args:
-                        _value=True
-                        if _short not in self.argo: self.argo.append(_short)
-                        self.args.remove(_short)
-                    elif _combin: # check combin data in short
-                        for ii in range(0,len(self.args)):
-                            cc=False
-                            if re.match(r'-[a-zA-Z0-9]',self.args[ii]):
-                                if _short[1:] in self.args[ii]:
-                                    #Global's combin short option(not _group) or command's short option of combin(_group == self.argv[_cmd_id])
-                                    if not _group or _group == self.argv[_cmd_id]:
-                                        _value=True
-                                        i=self.args[ii].index(_short[1:])
-                                        self.args[ii]=self.args[ii][:i]+self.args[ii][i+len(_short[1:]):]
-                                        cc=True
-                                        if _short not in self.argo: self.argo.append(_short)
-                                if cc: self.combins.append(self.args[ii])
-            # Input parameter
+            if path in ['basename','filename']:
+                return os.path.basename(__file__)
+            elif path in ['full','abs','absolut']:
+                return __file__
+        return sys.argv[0]
+
+    def SetGroup(self,name,desc=None,idx=None,command=None,hidden=False):
+        if name not in self.groups:
+            self.groups[name]={}
+        self.groups[name]['desc']=desc
+        self.groups[name]['hidden']=hidden
+        if command:
+            self.groups[name]['command']=True
+            if not idx:
+                self.groups[name]['idx']=self.default_command_id+1
             else:
-                if _long and _params_name:
-                    _params=1
-                    tt=[]
-                    for ii in self.args:
-                        if ii.startswith('{}='.format(_long)):
-                            __v__=TypeData(ii.split('=')[1],want_type=_type,spliter=_spliter)
-                            if __v__ is False:
-                                if self.ask:
-                                    iii=cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
-                                    if not IsNone(iii):
-                                        __v__=TypeData(iii,want_type=_type,spliter=_spliter)
-                                        if __v__ is False:
-                                            self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
-                                        _value.append(__v__)
-                                else:
-                                    self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_long,_type.__name___))
-                            _value.append(__v__)
+                self.groups[name]['idx']=idx
+
+    def GetGroupNames(self,command=None,whole=False):
+        #command : None: All groups
+        #command : True: All commands
+        #command : False: All groups exclude commands
+        out=[]
+        for k in self.groups:
+            if isinstance(self.groups[k],dict):
+                if command is True:
+                    if self.groups[k].get('command'):
+                        out.append(k)
+                elif command is False:
+                    if not self.groups[k].get('command'):
+                        out.append(k)
+                else:
+                    out.append(k)
+        if whole:
+            if 'global' not in out:
+                return [None,'global']+out
+            return [None]+out
+        else:
+            if 'global' in out: out.remove('global')
+            return out
+
+    def CheckNameOpts(self,name,short=None,long=None,group=None,command=None,verify=False):
+        def _chk_(name,gg,short=None,long=None):
+            #Check items in each groups
+            if name in self.groups.get(gg,{}):
+                return True,(name,self.groups[gg][name].get('short'),self.groups[gg][name].get('long'),gg,1)
+            if short:
+                if verify and self.IsCombinedOpt(short): ##sys.argv analysis area
+                    #return list for combined option
+                    opt=[]
+                    for k in self.groups.get(gg,{}):
+                        if not isinstance(self.groups[gg][k],dict): continue
+                        if self.groups[gg][k]['combin']:
+                            for ss in short[1:]:
+                                if ss in self.groups[gg].get('combin',[]):
+                                    if (k,self.groups[gg][k].get('short'),self.groups[gg][k].get('long'),gg,2) not in opt:
+                                        opt.append((k,self.groups[gg][k].get('short'),self.groups[gg][k].get('long'),gg,2))
                         else:
-                            tt.append(ii)
-                    self.args=tt
-                if not _value:
-                    tt=[]
-                    for ii in range(0,len(self.args)):
-                        if _short == self.args[ii] or (_long == self.args[ii] and not _params_name):
-                            if _params == '-':
-                                for jj in range(ii+1,len(self.args)):
-                                    if self.args[jj][0] == '-':
-                                        break
-                                    __v__=TypeData(self.args[jj],want_type=_type,spliter=_spliter)
-                                    if __v__ is False:
-                                        if self.ask:
-                                            iii=cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
-                                            if not IsNone(iii):
-                                                __v__=TypeData(iii,want_type=_type,spliter=_spliter)
-                                                if __v__ is False:
-                                                    self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
-                                                _value.append(__v__)
-                                        else:
-                                            self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
-                                    _value.append(__v__)
-                                break
-                                tt=tt+self.args[jj+1:]
-                            elif isinstance(_params,int) and len(self.args) >= ii+1+_params:
-                                for jj in range(0,_params):
-                                    if self.args[ii+1+jj][0] == '-':
-                                        break
-                                    __v__=TypeData(self.args[ii+1+jj],want_type=_type,spliter=_spliter)
-                                    if __v__ is False:
-                                        if self.ask:
-                                            iii=cli_input('Wrong input type format at {}, it required {}! Please type it:'.format(_short if _short else _long,_type.__name__))
-                                            if not IsNone(iii):
-                                                __v__=TypeData(iii,want_type=_type,spliter=_spliter)
-                                                if __v__ is False:
-                                                    self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
-                                                _value.append(__v__)
-                                        else:
-                                            self.error_exit('ERROR: Wrong input type format at {}, it required {}'.format(_short if _short else _long,_type.__name__))
-                                    _value.append(__v__)
-                                if len(_value) == _params:
-                                    tt=tt+self.args[ii+jj+2:]
-                                    break
-                                else:
-                                    _value=[]
-                                    tt=tt+self.args[ii:]
-                        else:
-                            tt.append(self.args[ii])
-                    self.args=tt
-        if _group:
-            if _command:
-                if _group not in self.commands:self.commands[_group]=_cmd_id
-            if _group not in self.group: self.group[_group]={}
-            if _command:
-                self.group[_group]['command']=_command
-                if _hidden: self.group[_group]['hidden']=_hidden
-                #If command has _select and arg then this command should be need input arg value in selection
-                if _arg:
-                    self.group[_group]['arg']=True
-                    if _select:
-                        self.group[_group]['select']=_select
-                        if not self.__dict__.get('args'):
-                            if _default: self.group[_group]['value']=_default
-                        else: #put any data (even if wrong data)
-                            self.group[_group]['value']=self.__dict__.get('args')[0]
-                            del self.__dict__['args'][0]
+                            #if the condition is not combin then returh tuple
+                            if self.groups[gg][k]['short'] == short:
+                                return True,(k,self.groups[gg][k].get('short'),self.groups[gg][k].get('long'),gg,2)
+                    if opt:
+                        return True,opt
                     else:
-                        if int(self.__dict__.get('args')) > 0:
-                            self.group[_group]['value']=self.__dict__.get('args')[0]
-                            del self.__dict__['args'][0]
-            else:
-                #Temporary save value at global for command group data
-                if self.argv[0] != self.Cmd() and _group in self.commands:
-                    if _value:
-                        self.gtmp[_group]={'short':_short,'long':_long,'value':_value}
-                        _value=[]
-                    #If same command and group then put the data to my group
-                    if _group == self.Cmd():
-                        __value=[]
-                        for gg in self.gtmp:
-                            if _short == self.gtmp[gg]['short'] or _long == self.gtmp[gg]['long']:
-                                __value=self.gtmp[gg]['value']
-                                break
-                        if __value:
-                            self.gtmp.pop(gg)
-                            _value=__value
-                self.group[_group][name]={
-                    'short':_short,
-                    'long':_long,
-                    'params':_params,
-                    'params_name':_params_name,
-                    'type':_type,
-                    'desc':_desc,
-                    'value':_value,
-                    'default':_default,
-                    'required':_required,
-                    'spliter':_spliter,
-                    'select':_select,
-                    'combin':_combin,
-                    'hidden':_hidden,
-                }
-            if _group_desc: self.group[_group]['desc']=_group_desc
+                        if not long:
+                            return False,[(None,None,None,None,None)]
+                else: # define and other check
+                    #return tuple for single option
+                    for k in self.groups.get(gg,{}):
+                        if not isinstance(self.groups[gg][k],dict): continue
+                        if self.groups[gg][k]['short'] == short:
+                            return True,(k,self.groups[gg][k].get('short'),self.groups[gg][k].get('long'),gg,2)
+            if long:
+                for k in self.groups.get(gg,{}):
+                    if not isinstance(self.groups[gg][k],dict): continue
+                    if self.groups[gg][k]['long'] == long:
+                        return True,(k,self.groups[gg][k].get('short'),self.groups[gg][k].get('long'),gg,3)
+            return False,(None,None,None,None,None)
+
+        def _globals_(name,short=None,long=None):
+            # global > global group > command
+            #if no group then check duplicated parameter in (inside) global 
+            if verify: #sys.argv analysis area
+                oo=[]
+                ok=False
+                for gg in self.GetGroupNames(whole=True): #Globals search all groups
+                    o=_chk_(name,gg,short,long)
+                    if o[0]:
+                        ok=True
+                        if isinstance(o[1],list): #combined option
+                            oo=oo+o[1]
+                        else: # normal option
+                            oo=o[1]
+                if ok:
+                    return ok,oo
+            else: # define and other check
+                for gg in ['global']+self.GetGroupNames(): #Globals search all groups
+                    o=_chk_(name,gg,short,long)
+                    if o[0]:
+                        return o
+            return False,(None,None,None,None,None)
+
+        def _commands_(name,short=None,long=None,group=None):
+            #if have a group then check duplicated parameter in (inside) group
+            global_group=self.GetGroupNames(command=False,whole=True) #Globals search all groups
+            if verify: #sys.argv analysis area
+                oo=[]
+                ok=False
+                for gg in global_group: # Global without command options
+                    o=_chk_(name,gg,short,long)
+                    if o[0]:
+                        ok=True
+                        if isinstance(o[1],list): #combined option
+                            oo=oo+o[1]
+                        else: #normal option
+                            oo=o[1]
+                if group not in global_group: # Command options
+                    a=_chk_(name,group,short,long)
+                    if a[0]:
+                        ok=True
+                        if isinstance(o[1],list): #combined option
+                            oo=oo+a[1]
+                        else: # normal option
+                            oo=a[1]
+                if ok:
+                    return ok,oo
+            else: #define and other check
+                for gg in global_group:
+                    o=_chk_(name,gg,short,long)
+                    if o[0]:
+                        return o
+                if group not in global_group:
+                    return _chk_(name,group,short,long)
+            return False,(None,None,None,None,None)
+
+        global_group=self.GetGroupNames(command=False,whole=True) #Globals search all groups
+        if group not in global_group and command: # For command
+            return _commands_(name,short,long,group)
         else:
-            self.option[name]={
-                'short':_short,
-                'long':_long,
-                'params':_params,
-                'params_name':_params_name,
-                'type':_type,
-                'desc':_desc,
-                'value':_value,
-                'default':_default,
-                'required':_required,
-                'spliter':_spliter,
-                'select':_select,
-                'combin':_combin,
-                'hidden':_hidden,
-            }
-    def Cmd(self,name=None,cmd_group=False):
-        sys_argvn=len(sys.argv)
-        # name is current right command?
-        if name:
-            if name in self.commands:
-                if sys_argvn > self.commands[name] and sys.argv[self.commands[name]] == name:
-                    self.Check(group=name)
-                    if len(self.args) > self.commands[name] and self.args[self.commands[name]-1] == name:
-                        del self.args[self.commands[name]-1]
-                    return True
-            else:
-                if sys_argvn > self.cmd_id and sys.argv[self.cmd_id] == name:
-                    del self.args[self.cmd_id]
-                    return True
-            return False
-        # What is currently my command?
-        for i in self.commands:
-            if sys_argvn > self.commands[i] and sys.argv[self.commands[i]] == i:
-                if len(self.args) > self.commands[i] and self.args[self.commands[i]-1] == i:
-                    del self.args[self.commands[i]-1]
-                self.Check(group=i)
-                return i
-        if cmd_group:
-            print('! Can not find right command!\n')
-        else:
-            if self.cmd_id < sys_argvn:
-                self.Check(group=self.argv[self.cmd_id])
-                if len(self.args) > self.cmd_id and self.args[self.cmd_id] == self.argv[self.cmd_id]:
-                    del self.args[self.cmd_id]
-                return self.argv[self.cmd_id]
-            else:
-                print(':: Require some command, check cmd_id=N in SysArg()\n')
-        self.Help(call=True)
-    def Get(self,name=None,group=None,mode='auto'):
-        def Val(data,mode='auto'):
-            if isinstance(data,dict):
-                vv=data.get('value')
-                if IsNone(vv):
-                    vv=data.get('default')
-                if data.get('select'):
-                    if vv in data.get('select'):
-                        return vv
-                    else:
-                        self.error_exit('ERROR: Wrong input({}). it should be one of {}'.format(vv,data['select']))
-                if mode == 'auto':
-                    if isinstance(vv,list) and len(vv) == 1:
-                        return vv[0]
-                return vv
-        if name:
-            if group and group in self.group:
-                return Val(self.group[group].get(name))
-            elif name in self.option:
-                return Val(self.option[name])
-        else:
-            rt={}
+            return _globals_(name,short,long)
+
+    def Define(self,name,group=None,**opts):
+        #Menu define
+        def _define_(name,group,**opts):
+            sub_group_template={'short':None,
+                                'long':None,
+                                'params':0,
+                                'params_name':None,
+                                'type':str,
+                                'desc':None,
+                                'required':False,
+                                'default':None,
+                                'spliter':None,
+                                'select':None,
+                                'combin':False,
+                                'hidden':False,
+                                'value':None
+                                }
+
             if not group:
-                for o in self.option:
-                    rt[o]=Val(self.option[o])
-                for g in self.group:
-                    if g not in rt: rt[g]={}
-                    for o in self.group[g]:
-                        if isinstance(self.group[g][o],dict):
-                            rt[g][o]=Val(self.group[g][o])
-            elif group and group in self.group:
-                #rt[group]={}
-                for o in self.group[group]:
-                    rt[o]=Val(self.group[group][o])
-#                    if isinstance(self.group[group][o],dict):
-#                        rt[group][o]=IsNone(Val(self.group[group][o]),out=None)
-            return rt
-    def Check(self,group=None):
-        if '--help' in self.argv:
-            return
-        if group and group in self.group:
-            for name in self.group[group]:
-                if isinstance(self.group[group][name],dict) and self.group[group][name].get('required'):
-                    if IsNone(self.group[group][name].get('value')):
-                        if IsNone(self.group[group][name].get('default')):
-                            aa=self.group[group][name].get('long') if self.group[group][name].get('long') else self.group[group][name].get('short')
-                            if self.ask:
-                                iii=cli_input('Missing "{}({})" parameter! Please type it:'.format(aa,name))
-                                if not IsNone(iii):
-                                    self.group[group][name]['value']=iii
-                            else:
-                                sys.stdout.write('\n!! Missing required option "{}({})" of {} !!\n\n'.format(aa,name,group))
-                                sys.stdout.flush()
-                                self.Help(call=True,command=group)
-        for name in self.option:
-            if self.option[name].get('required'):
-                if IsNone(self.option[name].get('value')):
-                    if IsNone(self.option[name].get('default')):
-                        aa=self.option[name].get('long') if self.option[name].get('long') else self.option[name].get('short')
-                        if self.ask:
-                            iii=cli_input('Missing "{}({})" parameter! Please type it:'.format(aa,name))
-                            if not IsNone(iii):
-                                self.option[name]['value']=iii
-                        else:
-                            sys.stdout.write('\n!! Missing required option "{}({})" !!\n\n'.format(name,aa))
-                            sys.stdout.flush()
-                            self.Help(call=True)
-    def Version(self,version=None,call=False,new_line='\n'):
-        if (version or self.version) and '--version' in sys.argv:
-            if version:
-                sys.stdout.write('{}'.format(version))
-            elif self.version:
-                sys.stdout.write('{}'.format(self.version))
+                if 'global' not in self.groups:
+                    self.groups['global']={}
+                GroupCfg=self.groups['global']
+            elif group in self.groups:
+                GroupCfg=self.groups[group]
             else:
-                sys.stdout.write('No version information')
-            if new_line: sys.stdout.write(new_line)
-            sys.stdout.flush()
-            os._exit(0)
-    def Help(self,Short='-h',Long='--help',call=False,short_len=5,long_len=30,desc_space=2,command=None,ignore_unknown_command=False):
+                print(f"Please define command '{group}' first before define {name} at group='{group}'")
+                os._exit(1)
+            found=self.CheckNameOpts(name,short=opts.get('short'),long=opts.get('long'),group=group,command=GroupCfg.get('command'))
+            if found[0]:
+                print(f"Duble defined '{found[found[-1]]}' in {group}({name}:{opts.get('short')}:{opts.get('long')}) and {found[-2]}({found[1]}:{found[2]}:{found[3]})")
+                os._exit(1)
+
+            # inside command define
+            if 'combin' not in GroupCfg:
+                GroupCfg['combin']=[]
+            for k in opts:
+                if k in sub_group_template:
+                    sub_group_template[k]=opts[k]
+                    if k == 'combin' and opts[k] is True:
+                        _short=opts.get('short')
+                        if isinstance(_short,str) and len(_short) == 2 and _short[0] == '-' and _short[1].isalnum():
+                            if _short[1] not in GroupCfg['combin']:
+                                GroupCfg['combin'].append(_short[1])
+                        else:
+                            print('combin required _short parameter with single character with - (ex: -a)')
+                            os._exit(1)
+            #if exist params_name then change params to default 1
+            if opts.get('params_name') and not opts.get('params'):
+                sub_group_template['params']=1
+
+            #Add default value at value and type
+            default_value=opts.get('default')
+            if default_value:
+                default_type=type(default_value).__name__
+                sub_group_template['value']=default_value
+                if default_type == 'list':
+                    sub_group_template['type']=list
+                elif default_type == 'tuple':
+                    sub_group_template['type']=tuple
+                elif default_type == 'dict':
+                    sub_group_template['type']=dict
+                elif default_type == 'int':
+                    sub_group_template['type']=int
+                elif default_type == 'float':
+                    sub_group_template['type']=float
+                elif default_type == 'bool':
+                    sub_group_template['type']=bool
+                elif default_type == 'str':
+                    if IpV4(default_value):
+                        sub_group_template['type']='ip'
+                    elif MacV4(default_value):
+                        sub_group_template['type']='mac'
+                    else:
+                        sub_group_template['type']=str
+                if default_type != 'bool' and sub_group_template['params'] == 0:
+                    sub_group_template['params']=1
+            #Setup params=0 then change type to bool
+            if sub_group_template.get('params') == 0:
+                sub_group_template['type']=bool
+            GroupCfg[name]=sub_group_template
+
+        #if opts.get('command'):
+        #    self.SetGroup(name if name else group,desc=opts['desc'],command=opts.get('command'))
+        #else:
+        #    _define_(name,group,**opts)
+        if opts.get('command'):
+            self.SetGroup(name if name else group,desc=opts.get('desc'),command=True,hidden=opts.get('hidden'))
+        elif group:
+            self.SetGroup(group,desc=opts['desc'],command=opts.get('command'),hidden=opts.get('hidden'))
+        if not opts.get('command'):
+            _define_(name,group,**opts)
+
+    def IsOpt(self,src):
+        #Check option : example) -X, --X
+        if isinstance(src,str):
+            if src.startswith('-'):
+                if len(src) == 2:
+                    #if src[1].isalpha():
+                    if src[1].isalnum():
+                        return True
+                elif len(src) > 2:
+                    #if src[1] == '-' and src[1].isalpha():
+                    if src[1] == '-' and src[2].isalnum():
+                        return True
+                    #elif src[1].isalpha():
+                    elif src[1].isalnum():
+                        return True
+        return False
+
+    def GetCombinedOpt(self,src):
+        O=[]
+        if self.IsOpt(src):
+            if src[0] == '-' and src[1].isalnum():
+                for i in src[1:]:
+                    O.append(f"-{i}")
+        return O
+
+    def IsCombinedOpt(self,src):
+        O=[]
+        if self.IsOpt(src):
+            if src[0] == '-' and src[1].isalnum() and len(src[1:]) > 1:
+                return True
+        return False
+
+    def GetGroupParameters(self,name=None):
+        #Get Whole group db
+        out={}
+        if not name: name='global'
+        if name in self.groups:
+            for k in self.groups[name]:
+                if isinstance(self.groups[name][k],dict):
+                    out[k]=self.groups[name][k].get('value')
+        else:
+            print("Can not find groupname '{name}'")
+            os._exit(1)
+        return out
+
+    def Get(self,name=None,group=None):
+        group_data=self.GetGroupParameters(group)
+        if name:
+            return group_data.get(name)
+        return group_data
+
+    def Cmd(self,name=None):
+        if name:
+            return self.run_command == name
+
+        if self.run_command: return self.run_command
+        #Get support command list
+        # Find current running command
+        for c in self.GetGroupNames(command=True):
+            idx=Int(self.groups[c].get('idx'))
+            if IsInt(idx) and len(self.argv) > idx and self.argv[idx] == c: #command
+                self.run_command=c
+                return self.run_command
+
+    # Aanalysis sys.argv : fill up from sys.argv to parameters
+    def Initialize(self):
+        def _analysis_params_(c,args):
+            i=0
+            while i < len(args):
+                #Single parameter
+                if self.IsOpt(args[i]):
+                    #Version
+                    if args[i] in self.version_tag:
+                        print(self.version)
+                        os._exit(0)
+                    #Help
+                    elif args[i] in self.help_tag:
+                        self.Help()
+                        os._exit(0)
+                    #Todo:
+                    # check combined options condition
+                    # then split it to single
+                    # and try below code to each other with combin tag for only search for combined single tag
+                    # if not found then put the whole tag to without combined to short
+                    # ether one can find
+
+                    #Other user defined options
+                    ok,found=self.CheckNameOpts(None,short=args[i],long=args[i],group=c,command=True,verify=True)
+                    found_tag=args[i]
+                    if ok:
+                        #For combined options, combined option must be bool without input value
+                        if isinstance(found,list):
+                            for x in found:
+                                cg=x[-2]
+                                found_type=self.groups[cg][x[0]].get('type')
+                                req_data_num=self.groups[cg][x[0]].get('params')
+                                if found_type is bool and req_data_num == 0:
+                                    self.groups[cg][x[0]]['value']=True
+                                else:
+                                    print(f"Something wrong for combined option at {x[0]}:type({found_type}),params({req_data_num}) group={cg}.\nPlease check it. it should be type=bool, params=0")
+                                    os._exit(1)
+                        else:
+                            #Normal option
+                            cg=found[-2]
+                            found_type=self.groups[cg][found[0]].get('type')
+                            req_data_num=self.groups[cg][found[0]].get('params')
+                            #BOOL
+                            if found_type is bool:
+                                if req_data_num == 0:
+                                    self.groups[cg][found[0]]['value']=True
+                                elif len(args) >= i+1 and not self.IsOpt(args[i+1]):
+                                    try:
+                                        if args[i+1].lower() == 'true':
+                                            self.groups[cg][found[0]]['value']=True
+                                        elif args[i+1].lower() == 'false':
+                                            self.groups[cg][found[0]]['value']=False
+                                        else:
+                                            print(f"{args[i+1]} is not bool type, {found_tag}'s type required bool")
+                                            os._exit(1)
+                                    except:
+                                        print(f"{args[i+1]} is not bool type, {found_tag}'s type required bool")
+                                        os._exit(1)
+                     
+                            elif found_type in [int,float]:
+                                if len(args) > i+1 and not self.IsOpt(args[i+1]):
+                                    i+=1
+                                    if found_type is float:
+                                        try:
+                                            self.groups[cg][found[0]]['value']=float(args[i])
+                                        except:
+                                            print(f"{args[i]} is not float type, {found_tag}'s type required float")
+                                            os._exit(1)
+                                    else:
+                                        try:
+                                            self.groups[cg][found[0]]['value']=int(args[i])
+                                        except:
+                                            print(f"{args[i]} is not int type, {found_tag}'s type required int")
+                                            os._exit(1)
+                                else:
+                                    print(f"{found_tag} required int value. missing value")
+                                    os._exit(1)
+                            elif found_type in [list,tuple]:
+                                spliter=self.groups[cg][found[0]].get('spliter')
+                                if len(args) > i+req_data_num:
+                                    v=[]
+                                    if req_data_num == 1:
+                                        i+=1
+                                        if self.IsOpt(args[i]):
+                                            print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                            os._exit(1)
+                                        if spliter:
+                                            v=args[i].split(spliter)
+                                        else:
+                                            v=[args[i]]
+                                    else:
+                                        for x in range(1,req_data_num+1):
+                                            i+=1
+                                            if self.IsOpt(args[i]):
+                                                print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                                os._exit(1)
+                                            v.append(args[i])
+                                    if found_type is tuple:
+                                        self.groups[cg][found[0]]['value']=tuple(v)
+                                    else:
+                                        self.groups[cg][found[0]]['value']=v
+                            elif isinstance(found_type,str):
+                                found_type=found_type.lower()
+                                if found_type == 'ip':
+                                    if len(args)<= i+1 or self.IsOpt(args[i+1]):
+                                        print(f"{args[i]} is not value, {found_tag} required 1 values")
+                                        os._exit(1)
+                                    i+=1
+                                    ip=IpV4(args[i])
+                                    if ip:
+                                        self.groups[cg][found[0]]['value']=ip
+                                    else:
+                                        print(f"{found_tag} required ip format")
+                                        os._exit(1)
+                                elif found_type == 'mac':
+                                    if len(args) <= i+1 or self.IsOpt(args[i+1]):
+                                        print(f"{args[i]} is not value, {found_tag} required 1 values")
+                                        os._exit(1)
+                                    i+=1
+                                    mac=MacV4(args[i])
+                                    if mac:
+                                        self.groups[cg][found[0]]['value']=mac
+                                    else:
+                                        print(f"{found_tag} required MAC format")
+                                        os._exit(1)
+                                else: #auto matic convert : found_type in ['auto']:
+                                    spliter=self.groups[cg][found[0]].get('spliter')
+                                    if len(args) > i+req_data_num:
+                                        v=[]
+                                        if req_data_num == 1:
+                                            i+=1
+                                            if self.IsOpt(args[i]):
+                                                print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                                os._exit(1)
+                                            if spliter:
+                                                for x in args[i].split(spliter):
+                                                    try:
+                                                        v.append(eval(x))
+                                                    except:
+                                                        v.append(x)
+                                            else:
+                                                try:
+                                                    v=[eval(args[i])]
+                                                except:
+                                                    v=[args[i]]
+                                        else:
+                                            for x in range(1,req_data_num+1):
+                                                i+=1
+                                                if self.IsOpt(args[i]):
+                                                    print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                                    os._exit(1)
+                                                try:
+                                                    v.append(eval(args[i]))
+                                                except:
+                                                    v.append(args[i])
+                                        self.groups[cg][found[0]]['value']=v
+                            elif type(found_type).__name__ in ['function','method']:
+                                if len(args) > i+req_data_num:
+                                    v=[]
+                                    for x in range(1,req_data_num+1):
+                                        i+=1
+                                        if self.IsOpt(args[i]):
+                                            print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                            os._exit(1)
+                                        v.append(args[i])
+                                    o=found_type(*v)
+                                    if isinstance(o,tuple):
+                                        if isinstance(o[0],bool):
+                                            if o[0]:
+                                                self.groups[cg][found[0]]['value']=o[1:]
+                                            else:
+                                                print(f"{v} is not right value of {found_tag}, issue with {o[1:]}")
+                                                os._exit(1)
+                                        else:
+                                            self.groups[cg][found[0]]['value']=o
+                                    else:
+                                        self.groups[cg][found[0]]['value']=o
+                            else:
+                                if len(args) > i+req_data_num:
+                                    v=[]
+                                    for x in range(1,req_data_num+1):
+                                        i+=1
+                                        if self.IsOpt(args[i]):
+                                            print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                            os._exit(1)
+                                        v.append(args[i])
+                                    self.groups[cg][found[0]]['value']=' '.join(v)
+                    else:
+                        if not self.support_unknown_option:
+                            print(f"Unknown '{args[i]}'")
+                            os._exit(1)
+                i+=1
+
+        #Get support command list
+        cmds=self.GetGroupNames(command=True)
+        run_cmd=self.Cmd()
+        ## Find current running command
+        #for c in cmds:
+        #    idx=Int(self.groups[c].get('idx'))
+        #    if IsInt(idx) and len(self.args) > idx and self.args[idx] == c: #command
+        #        self.run_cmd=self.args[idx]
+        #        break
+        #Check global parameters
+        args=self.args[1:]
+        _analysis_params_('global',self.args[1:])
+        #Check required parameters are missing in global options
+        for k in self.groups['global']:
+            if not isinstance(self.groups['global'][k],dict): continue
+            #Todo:
+            #if run this command then required value
+            if self.groups['global'][k].get('required') is True or  \
+               self.groups['global'][k].get('required') == run_cmd:
+                if self.groups['global'][k]['value'] is None:
+                    found_tag=self.groups['global'][k].get('short') if self.groups['global'][k].get('short') else self.groups['global'][k].get('long')
+                    req_group='global' if self.groups['global'][k].get('required') is True else run_cmd
+                    print(f"{found_tag} required values in {req_group}, but missing data")
+                    os._exit(1)
+
+        #Global groups parameters
+        groups=self.GetGroupNames(command=False)
+        # defined commands
+        for c in groups:
+            _analysis_params_(c,self.args[1:])
+            #Check required parameters are missing in command
+            for k in self.groups[c]:
+                if not isinstance(self.groups[c][k],dict): continue
+                if self.groups[c][k].get('required') is True or \
+                   self.groups[c][k].get('required') == run_cmd:
+                    if self.groups[c][k]['value'] is None:
+                        found_tag=self.groups[c][k].get('short') if self.groups[c][k].get('short') else self.groups[c][k].get('long')
+                        req_group=c if self.groups[c][k].get('required') is True else run_cmd
+                        print(f"{found_tag} required values in {req_group}, but missing data")
+                        os._exit(1)
+
+        #Each defined command's parameters
+        # defined commands
+        for c in cmds:
+            idx=self.groups[c]['idx']
+            if len(self.args) > idx and self.args[idx] == c: #command
+                i=0
+                args=self.args[idx+1:]
+                _analysis_params_(c,args)
+
+            #Check required parameters are missing in command
+            for k in self.groups[c]:
+                if not isinstance(self.groups[c][k],dict): continue
+                if self.groups[c][k].get('required') is True or \
+                   self.groups[c][k].get('required') == run_cmd:
+                    if self.groups[c][k]['value'] is None:
+                        found_tag=self.groups[c][k].get('short') if self.groups[c][k].get('short') else self.groups[c][k].get('long')
+                        req_group=c if self.groups[c][k].get('required') is True else run_cmd
+                        print(f"{found_tag} required values in {req_group}, but missing data")
+                        os._exit(1)
+        # Find Others after parameters
+        i=len(args)-1
+        while i > 0:
+            if self.IsOpt(args[i]): #Search parameter name to backward
+                ok,found=self.CheckNameOpts(None,short=args[i],long=args[i],group='global')
+                if ok:
+                    #n=self.groups['global'][found[1]].get('params')
+                    n=self.groups[found[-2]][found[0]].get('params')
+                    self.argo=args[i+n+1:]
+                    return
+                # defined commands
+                for c in self.GetGroupNames():
+                    ok,found=self.CheckNameOpts(None,short=args[i],long=args[i],group=c)
+                    if ok:
+                        n=self.groups[c][found[0]].get('params')
+                        self.argo=args[i+n+1:]
+                        return
+            i-=1
+
+    def ArgO(self,find=None,merge=True): # Others
+        #Todo:
+        #Copy it from old code
+        #Looks need upgrade it
+        if find:
+            if len(find) > 2:
+                if find[:2] == '--': merge=False
+            for i in self.argo:
+                if merge:
+                    if find[0] == '-': find=find[1:]
+                    if len(i) > 1:
+                        if i[1] != '-':
+                            if find in i[1:]:
+                                return True
+                else:
+                    if i == find:
+                        return True
+            return False
+        else:
+            #Default return of remained string after filter out defined/required options
+            return self.argo
+
+    def Args(self,syms=[]):
+        #Todo:
+        #Just copy it from old code
+        #Why it need it?
+        #For what?
+        tt=[]
+        for ii in self.argv:
+            c=True
+            for i in syms:
+                if re.search('^{}\w+'.format(i),ii):
+                    if ii not in self.argo: self.argo.append(ii)
+                    c=False
+                    break
+            if c: tt.append(ii)
+        if tt and tt != self.args:
+            self.args=tt
+        return self.args
+
+    def Help(self,short_len=5,long_len=30,desc_space=2,command=None,ignore_unknown_command=False):
        #######################
        #Description Design
        #######################
@@ -474,25 +737,17 @@ defind()
                        sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),data.get('long'),_desc))
                    sys.stdout.flush()
        # If exist command then print help for the command only (show all)
-       if Short in self.argv:
-           ii=self.argv.index(Short)
-           if ii > 1:
-               command=self.argv[ii-1]
-       if Long in self.argv:
-           ii=self.argv.index(Long)
-           if ii> 1:
-               command=self.argv[ii-1]
        if command:
            if command in self.group:
                #if command but no option then ignore
-               if len(self.group[command]) >= 2:
+               if len(self.groups[command]) >= 2:
                    #Command group
-                   if self.group[command].get('command'):
+                   if self.groups[command].get('command'):
                        print()
                        sys.stdout.write('Usage: {} {} [OPTION] [<args>]\n'.format(self.program,command))
                        print()
-                       if self.group[command].get('desc'):
-                           _group_desc=WrapString(self.group[command]['desc'],nspace=short_len+long_len+desc_space)
+                       if self.groups[command].get('desc'):
+                           _group_desc=WrapString(self.groups[command]['desc'],nspace=short_len+long_len+desc_space)
                            sys.stdout.write(' %s\n'%(_group_desc))
                        sys.stdout.write('\n[OPTION]\n')
                        #Print regular/global option
@@ -500,26 +755,26 @@ defind()
                            print_option(self.option[oo])
                    #normal group
                    else:
-                       tt_str=' * {}'.format(command) if self.group[command].get('command') else '[ {} ]'.format(command)
-                       if self.group[command].get('desc'):
+                       tt_str=' * {}'.format(command) if self.groups[command].get('command') else '[ {} ]'.format(command)
+                       if self.groups[command].get('desc'):
                            sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
                        else:
                            sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(tt_str))
                    sys.stdout.flush()
                    #Print group/local option
-                   for oo in self.group[command]:
-                       print_option(self.group[command][oo])
+                   for oo in self.groups[command]:
+                       print_option(self.groups[command][oo])
                    #Print other group option
-                   if self.group[command].get('command'):
+                   if self.groups[command].get('command'):
                        for gg in self.group:
-                           if not self.group[gg].get('command'):
-                               if self.group[gg].get('desc'):
-                                   _group_desc=WrapString(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
+                           if not self.groups[gg].get('command'):
+                               if self.groups[gg].get('desc'):
+                                   _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space)
                                    sys.stdout.write('\n%-{}s%s\n'.format(short_len+long_len)%('[ {} ]'.format(gg),_group_desc))
                                else:
                                    sys.stdout.write('\n%-{}s\n'.format(short_len+long_len)%('[ {} ]'.format(gg)))
-                               for oo in self.group[gg]:
-                                   print_option(self.group[gg][oo])
+                               for oo in self.groups[gg]:
+                                   print_option(self.groups[gg][oo])
                    os._exit(0)
            elif not ignore_unknown_command:
                print('{} not found'.format(command))
@@ -527,143 +782,86 @@ defind()
        #######################
        #Print Help(Main Design)
        #######################
-       #if call or (Short and Short in self.argv) or (Long and Long in self.argv):
-       if call or IsSame(Get(self.args,0),Short)  or IsSame(Get(self.args,0),Long):
-           if self.cmd_id > 0 and not self.commands:
-                sys.stderr.write("ERROR: defined extra command at SysArg(..,cmd_id=N).\nIt required defineing command with SysArg.define(...,group=<cmd name>,command=True)\n")
-                sys.stderr.flush()
-                os._exit(1)
-           #Print Program
-           if self.program:
-               if self.option:
-                   if self.commands:
-                       sys.stdout.write('\nUsage: {} <command> [OPTION] [<args>]\n'.format(self.program))
-                   else:
-                       sys.stdout.write('\nUsage: {} [OPTION] [<args>]\n'.format(self.program))
-               else:
-                   if self.commands:
-                       sys.stdout.write('\nUsage: {} <command> [<args>]\n'.format(self.program))
-                   else:
-                       sys.stdout.write('\nUsage: {} [<args>]\n'.format(self.program))
-               if self.version:
-                   sys.stdout.write('Version: {}\n\n'.format(self.version))
-               sys.stdout.flush()
-           #Print Special Group Option
-           if self.commands and self.cmd_id > 0 and len(self.argv) > self.cmd_id and self.argv[self.cmd_id] in self.commands:
-               if self.group[self.argv[self.cmd_id]].get('command'):
-                   if self.group[self.argv[self.cmd_id]].get('desc'):
-                       _group_desc=WrapString(self.group[self.argv[self.cmd_id]]['desc'],nspace=short_len+long_len+desc_space)
-                       sys.stdout.write('1* %-{}s  %s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id],_group_desc))
-                   else:
-                       sys.stdout.write('2* %-{}s\n'.format(short_len+long_len-2)%(self.argv[self.cmd_id]))
-                   sys.stdout.flush()
-               for oo in self.group[self.argv[self.cmd_id]]:
-                   print_option(self.group[self.argv[self.cmd_id]][oo])
-               os._exit(0)
-           #Print Desc
-           if self.desc:
-               sys.stdout.write(self.desc+'\n')
-               sys.stdout.flush()
-           force=Variable(self.SysArg_hidden_show,default=False,mode='all')
-           #Supported Commands display Description
-           if self.commands:
-               sys.stdout.write('\nSupported <command>s are:\n')
-               for cc in self.commands:
-                   if not force and self.group.get(cc,{}).get('hidden'): continue
-                   if self.group.get(cc,{}).get('desc') :
-                       _group_desc=WrapString(self.group[cc]['desc'],nspace=short_len+long_len+desc_space)
-                       if self.group.get(cc,{}).get('arg'): # required argument
-                           sys.stdout.write('  %-{}s%s\n'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
-                       else:
-                           sys.stdout.write('  %-{}s%s\n'.format(short_len+long_len)%(cc,_group_desc))
-                   else:
-                       sys.stdout.write('  %-{}s\n'.format(short_len+long_len)%(cc))
-                   sys.stdout.flush()
-               sys.stdout.flush()
-           sys.stdout.write('\n[OPTION]\n')
-           #Print Help Option
-           _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
-           if Short and Long:
-               sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(Short,Long,_help_desc))
-           elif Long:
-               sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),Long,_help_desc))
-           elif Short and Long:
-               sys.stdout.write('%{}s  %s\n'.format(short_len)%(Short,Space(long_len),_help_desc))
+       #Print Program
+       commands=self.GetGroupNames(command=True)
+       groups=self.GetGroupNames(command=False)
+       if self.program:
+           if commands:
+               sys.stdout.write('\nUsage: {} <command> [OPTION] [<args>]\n'.format(self.program))
+           else:
+               sys.stdout.write('\nUsage: {} [OPTION] [<args>]\n'.format(self.program))
+           if self.version:
+               sys.stdout.write('Version: {}\n\n'.format(self.version))
            sys.stdout.flush()
-           #Print Regular Option
-           for oo in self.option:
-               print_option(self.option[oo])
-           #Print Group Option
-           for gg in self.group:
-               #if command but no option/hidden then ignore
-               group_hidden=self.group[gg].pop('hidden') if 'hidden' in self.group[gg] else None
-               if len(self.group[gg]) >= 3 and (not group_hidden or force):
-                   tt_str=' * {}'.format(gg) if self.group[gg].get('command') else '[ {} ]'.format(gg)
-                   print()
-                   if self.group[gg].get('desc'):
-                       _group_desc=WrapString(self.group[gg]['desc'],nspace=short_len+long_len+desc_space)
-                       sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
+       #Print Special Group
+       #if commands: # for commands
+       #    for cc in commands:
+       #        if self.groups[cc].get('desc'):
+       #            _group_desc=WrapString(self.groups[cc]['desc'],nspace=short_len+long_len+desc_space)
+       #            sys.stdout.write('* %-{}s  %s\n'.format(short_len+long_len-2)%(cc,_group_desc))
+       #        else:
+       #            sys.stdout.write('* %-{}s\n'.format(short_len+long_len-2)%(cc))
+       #        sys.stdout.flush()
+       #if groups: # for group
+       #    for gg in groups:
+       #        for ii in self.groups[gg]:
+       #            print_option(self.groups[gg][ii])
+
+       #Print Desc
+       if self.desc:
+           sys.stdout.write(self.desc+'\n')
+           sys.stdout.flush()
+       force=Variable(self.SysArg_hidden_show,default=False,mode='all')
+
+       #Supported Commands display Description
+       if commands:
+           sys.stdout.write('\nSupported <command>s are:\n')
+           for cc in commands:
+               if not force and self.groups.get(cc,{}).get('hidden'): continue
+               if self.groups.get(cc,{}).get('desc') :
+                   _group_desc=WrapString(self.groups[cc]['desc'],nspace=short_len+long_len+desc_space)
+                   if self.groups.get(cc,{}).get('arg'): # required argument
+                       sys.stdout.write('  %-{}s%s\n'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
                    else:
-                       sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(tt_str))
-                   sys.stdout.flush()
-                   for oo in self.group[gg]:
-                       print_option(self.group[gg][oo])
-           #Print Epilog
-           if self.epilog:
-               print(self.epilog)
-           os._exit(0)
-    def Args(self,syms=[]):
-        tt=[]
-        for ii in self.__dict__.get('args'):
-            c=True
-            for i in syms:
-                if re.search('^{}\w+'.format(i),ii):
-                    if ii not in self.argo: self.argo.append(ii)
-                    c=False
-                    break
-            if c: tt.append(ii)
-        if tt and tt != self.__dict__.get('args'):
-            self.__dict__['args']=tt
-        return self.__dict__.get('args')
-    def ArgO(self,find=None,merge=True): # Others
-        if find:
-            if len(find) > 2:
-                if find[:2] == '--': merge=False
-            for i in self.__dict__.get('argo'):
-                if merge:
-                    if find[0] == '-': find=find[1:]
-                    if len(i) > 1:
-                        if i[1] != '-':
-                            if find in i[1:]:
-                                return True
-                else:
-                    if i == find:
-                        return True
-            return False
-        else:
-            return self.__dict__.get('argo')
-    def Opts(self,name=None,get_true=False,combin=False,extra=False):
-        out={}
-        o=self.__dict__.get('option',{})
-        for i in o:
-            if o[i].get('value'):
-                if get_true and o[i].get('value') != get_true: continue
-                out[o[i].get('short',o[i].get('long'))]=o[i].get('value')
-        o=self.__dict__.get('group',{}).get(name,{})
-        for i in o:
-            if not isinstance(o[i],dict): continue
-            if o[i].get('value'):
-                if get_true and o[i].get('value') != get_true: continue
-                out[o[i].get('short',o[i].get('long'))]=o[i].get('value')
-        if combin:
-            m=''
-            for i in out.keys():
-                if len(i) == 2:
-                    m=m+i[1:]
-            if extra:
-                for i in self.combins:
-                    for j in list(i):
-                        if j=='-' or j in m: continue
-                        m=m+j
-            if m: return '-{}'.format(m)
-        return out
+                       sys.stdout.write('  %-{}s%s\n'.format(short_len+long_len)%(cc,_group_desc))
+               else:
+                   sys.stdout.write('  %-{}s\n'.format(short_len+long_len)%(cc))
+               sys.stdout.flush()
+           sys.stdout.flush()
+
+       sys.stdout.write('\n[OPTION]\n')
+       #Print Help Option
+       _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
+       if self.help_tag:
+           if len(self.help_tag) == 2:
+               sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
+           else:
+               if self.help_tag[0][1] == '-':
+                   sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
+               else:
+                   sys.stdout.write('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
+       sys.stdout.flush()
+
+       #Print Global Options
+       for ii in self.groups['global']:
+           print_option(self.groups['global'][ii])
+
+       #Print All options (Commands, Groups)
+       for gg in self.GetGroupNames():
+           #if command but no option/hidden then ignore
+           group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
+           if len(self.groups[gg]) >= 3 and (not group_hidden or force):
+               tt_str=' * {}'.format(gg) if self.groups[gg].get('command') else '[ {} ]'.format(gg)
+               print()
+               if self.groups[gg].get('desc'):
+                   _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space)
+                   sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
+               else:
+                   sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(tt_str))
+               sys.stdout.flush()
+               for oo in self.groups[gg]:
+                   print_option(self.groups[gg][oo])
+       #Print Epilog
+       if self.epilog:
+           print(self.epilog)
+       os._exit(0)
