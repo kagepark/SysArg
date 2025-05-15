@@ -12,12 +12,13 @@ class SysArg:
         self.desc=opts.get('desc')
         self.version=opts.get('version')
         self.epilog=opts.get('epilog')
+        self.support_unknown_option=opts.get('support_unknown',opts.get('support_unknown_option',False))
+        self.SysArg_hidden_show=Bool(opts.get('SysArg_hidden_show',False),want=True,auto_bool=True)
         self.help_desc=opts.get('help_desc','Help')
         self.help_tag=opts.get('help_tag',['-h','--help'])
-        self.support_unknown_option=opts.get('support_unknown',opts.get('support_unknown_option',False))
-        self.SysArg_hidden_show=opts.get('SysArg_hidden_show','SysArg_hidden_show')
         if not isinstance(self.help_tag,list):
             self.help_tag=[self.help_tag]
+        self.version_desc=opts.get('version_desc','Show version')
         self.version_tag=opts.get('version_tag',['-v','--version'])
         if not isinstance(self.version_tag,list):
             self.version_tag=[self.version_tag]
@@ -273,7 +274,7 @@ class SysArg:
         if opts.get('command'):
             self.SetGroup(name if name else group,desc=opts.get('desc'),command=True,hidden=opts.get('hidden'))
         elif group:
-            self.SetGroup(group,desc=opts['desc'],command=opts.get('command'),hidden=opts.get('hidden'))
+            self.SetGroup(group,desc=opts.get('desc'),command=opts.get('command'),hidden=opts.get('hidden'))
         if not opts.get('command'):
             _define_(name,group,**opts)
 
@@ -340,6 +341,12 @@ class SysArg:
             if IsInt(idx) and len(self.argv) > idx and self.argv[idx] == c: #command
                 self.run_command=c
                 return self.run_command
+
+    def GetCmdID(self,name):
+        for c in self.GetGroupNames(command=True):
+            idx=Int(self.groups[c].get('idx'))
+            if IsInt(idx) and len(self.argv) > idx and self.argv[idx] == c: #command
+                return idx
 
     # Aanalysis sys.argv : fill up from sys.argv to parameters
     def Initialize(self):
@@ -612,6 +619,44 @@ class SysArg:
                         self.argo=args[i+n+1:]
                         return
             i-=1
+        if not self.argo:
+            self.argo=args[i:]
+
+    def GetCommandOptionValue(self,option=None,parameter_name=None,default=False,cmd=None):
+        #Similar Get()
+        #But, it searching option's value in global and global group and my command
+        #It get options value in whole available group of my command 
+        if not option and not parameter_name:
+            return default
+
+        #Global Options
+        for kk in self.groups.get('global',{}):
+            if not isinstance(self.groups['global'][kk],dict): continue
+            if (parameter_name and kk == parameter_name) or \
+               (option and (self.groups['global'][kk].get('short') == option or \
+               self.groups['global'][kk].get('long') == option)):
+                return self.groups['global'][kk].get('value')
+
+        #Global Group Options
+        global_group_options=self.GetGroupNames(command=False)
+        if global_group_options:
+            for gg in global_group_options:
+                for kk in self.groups[gg]:
+                    if not isinstance(self.groups[gg][kk],dict): continue
+                    if (parameter_name and kk == parameter_name) or \
+                       (option and (self.groups[gg][kk].get('short') == option or \
+                          self.groups[gg][kk].get('long') == option)):
+                           return self.groups[gg][kk].get('value')
+
+        #Command Options
+        if cmd and cmd in self.groups:
+            for kk in self.groups[cmd]:
+                if not isinstance(self.groups[cmd][kk],dict): continue
+                if (parameter_name and kk == paramter_name) or \
+                   (option and (self.groups[cmd][kk].get('short') == option or \
+                      self.groups[cmd][kk].get('long') == option)):
+                       return self.groups[cmd][kk].get('value')
+        return default
 
     def ArgO(self,find=None,merge=True): # Others
         #Todo:
@@ -653,7 +698,7 @@ class SysArg:
             self.args=tt
         return self.args
 
-    def Help(self,short_len=5,long_len=30,desc_space=2,command=None,ignore_unknown_command=False):
+    def Help(self,short_len=5,long_len=30,desc_space=2,ignore_unknown_command=False):
        #######################
        #Description Design
        #######################
@@ -709,9 +754,8 @@ class SysArg:
        #Option Design
        #######################
        def print_option(data):
-           force=Variable(self.SysArg_hidden_show,default=False,mode='all')
            if isinstance(data,dict):
-               if not force and data.get('hidden'): return
+               if not self.SysArg_hidden_show and data.get('hidden'): return
                _desc=mk_desc(data.get('desc'),default=data.get('default'),required=data.get('required'),nspace=short_len+long_len+desc_space,_type=data.get('type'),_params=data.get('params'),_params_name=data.get('params_name'),_spliter=data.get('spliter'),_select=data.get('select'))
                if data.get('short') and data.get('long'):
                    if len(data.get('short')) > short_len:
@@ -737,48 +781,55 @@ class SysArg:
                        sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),data.get('long'),_desc))
                    sys.stdout.flush()
        # If exist command then print help for the command only (show all)
+       command=self.Cmd()
        if command:
-           if command in self.group:
-               #if command but no option then ignore
-               if len(self.groups[command]) >= 2:
-                   #Command group
-                   if self.groups[command].get('command'):
-                       print()
-                       sys.stdout.write('Usage: {} {} [OPTION] [<args>]\n'.format(self.program,command))
-                       print()
-                       if self.groups[command].get('desc'):
-                           _group_desc=WrapString(self.groups[command]['desc'],nspace=short_len+long_len+desc_space)
-                           sys.stdout.write(' %s\n'%(_group_desc))
-                       sys.stdout.write('\n[OPTION]\n')
-                       #Print regular/global option
-                       for oo in self.option:
-                           print_option(self.option[oo])
-                   #normal group
+           #Command group
+           print()
+           sys.stdout.write('Usage: {} {} [OPTION] [<args>]\n'.format(self.program,command))
+           print()
+           if self.groups[command].get('desc'):
+               _group_desc=WrapString(self.groups[command]['desc'],nspace=short_len+long_len+desc_space)
+               sys.stdout.write(' %s\n'%(_group_desc))
+           sys.stdout.write('\n[OPTION]\n')
+           #Print Help Option
+           _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
+           if self.help_tag:
+               if len(self.help_tag) == 2:
+                   sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
+               else:
+                   if self.help_tag[0][1] == '-':
+                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
                    else:
-                       tt_str=' * {}'.format(command) if self.groups[command].get('command') else '[ {} ]'.format(command)
-                       if self.groups[command].get('desc'):
-                           sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
-                       else:
-                           sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(tt_str))
-                   sys.stdout.flush()
-                   #Print group/local option
-                   for oo in self.groups[command]:
-                       print_option(self.groups[command][oo])
-                   #Print other group option
-                   if self.groups[command].get('command'):
-                       for gg in self.group:
-                           if not self.groups[gg].get('command'):
-                               if self.groups[gg].get('desc'):
-                                   _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space)
-                                   sys.stdout.write('\n%-{}s%s\n'.format(short_len+long_len)%('[ {} ]'.format(gg),_group_desc))
-                               else:
-                                   sys.stdout.write('\n%-{}s\n'.format(short_len+long_len)%('[ {} ]'.format(gg)))
-                               for oo in self.groups[gg]:
-                                   print_option(self.groups[gg][oo])
-                   os._exit(0)
-           elif not ignore_unknown_command:
-               print('{} not found'.format(command))
-               os._exit(1)
+                       sys.stdout.write('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
+           sys.stdout.flush()
+           #Print global's options
+           for ii in self.groups['global']:
+               print_option(self.groups['global'][ii])
+
+           #Print command's regular options
+           for oo in self.groups[command]:
+               if not isinstance(self.groups[command][oo],dict): continue
+               print_option(self.groups[command][oo])
+
+           #Print Global Group Options
+           #------------------------------------------------------------------------------------------
+           global_group_options=self.GetGroupNames(command=False)
+           if global_group_options:
+               sys.stdout.write('\n[Global Group Options]')
+               for gg in global_group_options:
+                   #if command but no option/hidden then ignore
+                   group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
+                   if len(self.groups[gg]) >= 3 and (not group_hidden or self.SysArg_hidden_show):
+                       tt_str='( {} )'.format(gg)
+                       print()
+                       __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
+                       _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
+                       sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
+                       sys.stdout.flush()
+                       for oo in self.groups[gg]:
+                           print_option(self.groups[gg][oo])
+
+           os._exit(0)
        #######################
        #Print Help(Main Design)
        #######################
@@ -793,31 +844,17 @@ class SysArg:
            if self.version:
                sys.stdout.write('Version: {}\n\n'.format(self.version))
            sys.stdout.flush()
-       #Print Special Group
-       #if commands: # for commands
-       #    for cc in commands:
-       #        if self.groups[cc].get('desc'):
-       #            _group_desc=WrapString(self.groups[cc]['desc'],nspace=short_len+long_len+desc_space)
-       #            sys.stdout.write('* %-{}s  %s\n'.format(short_len+long_len-2)%(cc,_group_desc))
-       #        else:
-       #            sys.stdout.write('* %-{}s\n'.format(short_len+long_len-2)%(cc))
-       #        sys.stdout.flush()
-       #if groups: # for group
-       #    for gg in groups:
-       #        for ii in self.groups[gg]:
-       #            print_option(self.groups[gg][ii])
 
        #Print Desc
        if self.desc:
            sys.stdout.write(self.desc+'\n')
            sys.stdout.flush()
-       force=Variable(self.SysArg_hidden_show,default=False,mode='all')
 
        #Supported Commands display Description
        if commands:
            sys.stdout.write('\nSupported <command>s are:\n')
            for cc in commands:
-               if not force and self.groups.get(cc,{}).get('hidden'): continue
+               if not self.SysArg_hidden_show and self.groups.get(cc,{}).get('hidden'): continue
                if self.groups.get(cc,{}).get('desc') :
                    _group_desc=WrapString(self.groups[cc]['desc'],nspace=short_len+long_len+desc_space)
                    if self.groups.get(cc,{}).get('arg'): # required argument
@@ -830,38 +867,81 @@ class SysArg:
            sys.stdout.flush()
 
        sys.stdout.write('\n[OPTION]\n')
-       #Print Help Option
+       #Print Help/Version Option
+       #------------------------------------------------------------------------------------------
        _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
-       if self.help_tag:
-           if len(self.help_tag) == 2:
-               sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
+       if len(self.help_tag) == 2:
+           sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
+       else:
+           if self.help_tag[0][1] == '-':
+               sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
            else:
-               if self.help_tag[0][1] == '-':
-                   sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
-               else:
-                   sys.stdout.write('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
+               sys.stdout.write('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
+       #------------------------------------------------------------------------------------------
+       _version_desc=WrapString(self.version_desc,nspace=short_len+long_len+desc_space)
+       if len(self.version_tag) == 2:
+           sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.version_tag[0],self.version_tag[1],_version_desc))
+       else:
+           if self.version_tag[0][1] == '-':
+               sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.version_tag[0],_version_desc))
+           else:
+               sys.stdout.write('%{}s  %s\n'.format(short_len)%(self.version_tag[0],Space(long_len),_version_desc))
        sys.stdout.flush()
+       #------------------------------------------------------------------------------------------
 
        #Print Global Options
+       #------------------------------------------------------------------------------------------
        for ii in self.groups['global']:
            print_option(self.groups['global'][ii])
+       #------------------------------------------------------------------------------------------
 
-       #Print All options (Commands, Groups)
-       for gg in self.GetGroupNames():
-           #if command but no option/hidden then ignore
-           group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
-           if len(self.groups[gg]) >= 3 and (not group_hidden or force):
-               tt_str=' * {}'.format(gg) if self.groups[gg].get('command') else '[ {} ]'.format(gg)
-               print()
-               if self.groups[gg].get('desc'):
-                   _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space)
+       #Print Global Group Options
+       #------------------------------------------------------------------------------------------
+       global_group_options=self.GetGroupNames(command=False)
+       if global_group_options:
+           sys.stdout.write('\n[Global Group Options]')
+           for gg in global_group_options:
+               #if command but no option/hidden then ignore
+               group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
+               if len(self.groups[gg]) >= 3 and (not group_hidden or self.SysArg_hidden_show):
+                   tt_str='( {} )'.format(gg)
+                   print()
+                   __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
+                   _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
                    sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
-               else:
-                   sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(tt_str))
-               sys.stdout.flush()
-               for oo in self.groups[gg]:
-                   print_option(self.groups[gg][oo])
+                   sys.stdout.flush()
+                   for oo in self.groups[gg]:
+                       print_option(self.groups[gg][oo])
+       #------------------------------------------------------------------------------------------
+
+       #Print All Commands options
+       #------------------------------------------------------------------------------------------
+       sub_commands=self.GetGroupNames(command=True)
+       if sub_commands:
+           sys.stdout.write('\n[sub-commands]')
+           for gg in sub_commands:
+               #if command but no option/hidden then ignore
+               group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
+               if len(self.groups[gg]) >= 3 and (not group_hidden or self.SysArg_hidden_show):
+                   tt_str=' * {}'.format(gg)
+                   print()
+                   if self.groups[gg].get('desc'):
+                       _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space)
+                       sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
+                   else:
+                       sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(tt_str))
+                   sys.stdout.flush()
+                   for oo in self.groups[gg]:
+                       print_option(self.groups[gg][oo])
+       #------------------------------------------------------------------------------------------
+
        #Print Epilog
+       #------------------------------------------------------------------------------------------
        if self.epilog:
            print(self.epilog)
+       #------------------------------------------------------------------------------------------
        os._exit(0)
+
+    def define(self,name,group=None,**opts):
+        #For support Old version
+        self.Define(name,group=group,**opts)
