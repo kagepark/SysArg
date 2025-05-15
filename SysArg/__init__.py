@@ -6,6 +6,7 @@ from kmport import *
 #redesigned main structure
 #version 2.x
 #Kage Park
+
 class SysArg:
     def __init__(self,*args,**opts):
         self.program=opts.get('program','APP')
@@ -622,6 +623,33 @@ class SysArg:
         if not self.argo:
             self.argo=args[i:]
 
+    def GetCommandOptions(self,cmd=None):
+        #Get current command's all options
+        out={}
+        #Global Options
+        for kk in self.groups.get('global',{}):
+            if not isinstance(self.groups['global'][kk],dict): continue
+            key=self.groups['global'][kk].get('short',self.groups['global'][kk].get('long'))
+            if key:
+                out[key]=self.groups['global'][kk].get('value')
+        #Global Group Options
+        global_group_options=self.GetGroupNames(command=False)
+        if global_group_options:
+            for gg in global_group_options:
+                for kk in self.groups[gg]:
+                    if not isinstance(self.groups[gg][kk],dict): continue
+                    key=self.groups[gg][kk].get('short',self.groups[gg][kk].get('long'))
+                    if key:
+                        out[key]=self.groups[gg][kk].get('value')
+        #Command Options
+        if cmd and cmd in self.groups:
+            for kk in self.groups[cmd]:
+                if not isinstance(self.groups[cmd][kk],dict): continue
+                key=self.groups[cmd][kk].get('short',self.groups[cmd][kk].get('long'))
+                if key:
+                    out[key]=self.groups[cmd][kk].get('value')
+        return out
+
     def GetCommandOptionValue(self,option=None,parameter_name=None,default=False,cmd=None):
         #Similar Get()
         #But, it searching option's value in global and global group and my command
@@ -658,27 +686,36 @@ class SysArg:
                        return self.groups[cmd][kk].get('value')
         return default
 
-    def ArgO(self,find=None,merge=True): # Others
-        #Todo:
-        #Copy it from old code
-        #Looks need upgrade it
-        if find:
-            if len(find) > 2:
-                if find[:2] == '--': merge=False
-            for i in self.argo:
-                if merge:
-                    if find[0] == '-': find=find[1:]
-                    if len(i) > 1:
-                        if i[1] != '-':
-                            if find in i[1:]:
-                                return True
-                else:
-                    if i == find:
-                        return True
-            return False
-        else:
-            #Default return of remained string after filter out defined/required options
-            return self.argo
+    #def ArgO(self,find=None,merge=False,filter_option=False): # Others
+    def ArgO(self,filter_option=False): # Others
+        #return default self.argo
+        #filter_option: 
+        #  filter out for unknown options (-xx, --xxx)
+        # Todo:
+        # what is find? Looks don't need it. because GetCommandOptionValue()
+        #if find:
+        #    if len(find) > 2:
+        #        if find[:2] == '--': merge=False
+        #    for i in self.argo:
+        #        if merge:
+        #            if find[0] == '-': find=find[1:]
+        #            if len(i) > 1:
+        #                if i[1] != '-':
+        #                    if find in i[1:]:
+        #                        return True
+        #        else:
+        #            if i == find:
+        #                return True
+        #    return False
+        #elif filter_option:
+        if filter_option:
+            i=len(self.argo)-1
+            while i >= 0:
+                if self.argo[i].startswith('-'):
+                    return self.argo[i+1:]
+                i-=1
+        #Default return of remained string after filter out defined/required options
+        return self.argo
 
     def Args(self,syms=[]):
         #Todo:
