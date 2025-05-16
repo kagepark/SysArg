@@ -650,7 +650,7 @@ class SysArg:
                     out[key]=self.groups[cmd][kk].get('value')
         return out
 
-    def GetCommandOptionValue(self,option=None,parameter_name=None,default=False,cmd=None):
+    def GetCommandOptionValue(self,option=None,cmd=None,parameter_name=None,default=False):
         #Similar Get()
         #But, it searching option's value in global and global group and my command
         #It get options value in whole available group of my command 
