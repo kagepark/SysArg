@@ -95,14 +95,16 @@ class SysArg:
             if short:
                 if verify and self.IsCombinedOpt(short): ##sys.argv analysis area
                     #return list for combined option
+                    #if this short is in combined then adding to combin
+                    #if not then normal short
                     opt=[]
                     for k in self.groups.get(gg,{}):
                         if not isinstance(self.groups[gg][k],dict): continue
+                        #Check combin
                         if self.groups[gg][k]['combin']:
-                            for ss in short[1:]:
-                                if ss in self.groups[gg].get('combin',[]):
-                                    if (k,self.groups[gg][k].get('short'),self.groups[gg][k].get('long'),gg,2) not in opt:
-                                        opt.append((k,self.groups[gg][k].get('short'),self.groups[gg][k].get('long'),gg,2))
+                            if self.groups[gg][k]['short'][-1] in short[1:]: #current combined parameter is in inputs(sys.argv) combined parameter
+                                if (k,self.groups[gg][k].get('short'),self.groups[gg][k].get('long'),gg,2) not in opt:
+                                    opt.append((k,self.groups[gg][k].get('short'),self.groups[gg][k].get('long'),gg,2))
                         else:
                             #if the condition is not combin then returh tuple
                             if self.groups[gg][k]['short'] == short:
@@ -134,6 +136,7 @@ class SysArg:
                 for gg in self.GetGroupNames(whole=True): #Globals search all groups
                     o=_chk_(name,gg,short,long)
                     if o[0]:
+                        if o[1] in oo: continue
                         ok=True
                         if isinstance(o[1],list): #combined option
                             oo=oo+o[1]
@@ -157,6 +160,7 @@ class SysArg:
                 for gg in global_group: # Global without command options
                     o=_chk_(name,gg,short,long)
                     if o[0]:
+                        if o[1] in oo: continue
                         ok=True
                         if isinstance(o[1],list): #combined option
                             oo=oo+o[1]
@@ -180,7 +184,8 @@ class SysArg:
                 if group not in global_group:
                     return _chk_(name,group,short,long)
             return False,(None,None,None,None,None)
-
+        if not group:
+            group='global'
         global_group=self.GetGroupNames(command=False,whole=True) #Globals search all groups
         if group not in global_group and command: # For command
             return _commands_(name,short,long,group)
@@ -268,15 +273,11 @@ class SysArg:
                 sub_group_template['type']=bool
             GroupCfg[name]=sub_group_template
 
-        #if opts.get('command'):
-        #    self.SetGroup(name if name else group,desc=opts['desc'],command=opts.get('command'))
-        #else:
-        #    _define_(name,group,**opts)
-        if opts.get('command'):
+        if opts.get('command'): # group for command
             self.SetGroup(name if name else group,desc=opts.get('desc'),command=True,hidden=opts.get('hidden'))
-        elif group:
+        elif group not in self.groups: #group for not command
             self.SetGroup(group,desc=opts.get('desc'),command=opts.get('command'),hidden=opts.get('hidden'))
-        if not opts.get('command'):
+        if not opts.get('command'): # define
             _define_(name,group,**opts)
 
     def IsOpt(self,src):
@@ -604,11 +605,10 @@ class SysArg:
                         os._exit(1)
         # Find Others after parameters
         i=len(args)-1
-        while i > 0:
+        while i >= 0:
             if self.IsOpt(args[i]): #Search parameter name to backward
                 ok,found=self.CheckNameOpts(None,short=args[i],long=args[i],group='global')
                 if ok:
-                    #n=self.groups['global'][found[1]].get('params')
                     n=self.groups[found[-2]][found[0]].get('params')
                     self.argo=args[i+n+1:]
                     return
@@ -621,9 +621,9 @@ class SysArg:
                         return
             i-=1
         if not self.argo:
-            self.argo=args[i:]
+            self.argo=args[:]
 
-    def GetCommandOptions(self,cmd=None):
+    def GetCommandOptions(self,cmd=None,cmd_line=False):
         #Get current command's all options
         out={}
         #Global Options
@@ -648,12 +648,29 @@ class SysArg:
                 key=self.groups[cmd][kk].get('short',self.groups[cmd][kk].get('long'))
                 if key:
                     out[key]=self.groups[cmd][kk].get('value')
+        if cmd_line:
+            out_str=''
+            for k in out:
+                if out[k]:
+                    if out_str:
+                        if type(out[k]).__name__ == 'bool':
+                            out_str=out_str+f' {k}'
+                        else:
+                            out_str=out_str+f' {k} {out[k]}'
+                    else:
+                        if type(out[k]).__name__ == 'bool':
+                            out_str=f'{k}'
+                        else:
+                            out_str=f'{k} {out[k]}'
+            return out_str
         return out
 
     def GetCommandOptionValue(self,option=None,cmd=None,parameter_name=None,default=False):
         #Similar Get()
         #But, it searching option's value in global and global group and my command
         #It get options value in whole available group of my command 
+        #same as collecting rule with GetCommandOptions
+
         if not option and not parameter_name:
             return default
 
@@ -686,32 +703,11 @@ class SysArg:
                        return self.groups[cmd][kk].get('value')
         return default
 
-    #def ArgO(self,find=None,merge=False,filter_option=False): # Others
     def ArgO(self,filter_option=False): # Others
-        #return default self.argo
-        #filter_option: 
-        #  filter out for unknown options (-xx, --xxx)
-        # Todo:
-        # what is find? Looks don't need it. because GetCommandOptionValue()
-        #if find:
-        #    if len(find) > 2:
-        #        if find[:2] == '--': merge=False
-        #    for i in self.argo:
-        #        if merge:
-        #            if find[0] == '-': find=find[1:]
-        #            if len(i) > 1:
-        #                if i[1] != '-':
-        #                    if find in i[1:]:
-        #                        return True
-        #        else:
-        #            if i == find:
-        #                return True
-        #    return False
-        #elif filter_option:
         if filter_option:
             i=len(self.argo)-1
             while i >= 0:
-                if self.argo[i].startswith('-'):
+                if self.IsOpt(self.argo[i]):
                     return self.argo[i+1:]
                 i-=1
         #Default return of remained string after filter out defined/required options
