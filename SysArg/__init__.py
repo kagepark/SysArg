@@ -7,6 +7,14 @@ from kmport import *
 #version 2.x
 #Kage Park
 
+def StdErr(msg):
+    sys.stderr.write(msg)
+    sys.stderr.flush()
+
+def StdOut(msg):
+    sys.stdout.write(msg)
+    sys.stdout.flush()
+
 class SysArg:
     def __init__(self,*args,**opts):
         self.program=opts.get('program','APP')
@@ -217,11 +225,11 @@ class SysArg:
             elif group in self.groups:
                 GroupCfg=self.groups[group]
             else:
-                print(f"Please define command '{group}' first before define {name} at group='{group}'")
+                StdErr(f"Please define command '{group}' first before define {name} at group='{group}'")
                 os._exit(1)
             found=self.CheckNameOpts(name,short=opts.get('short'),long=opts.get('long'),group=group,command=GroupCfg.get('command'))
             if found[0]:
-                print(f"Duble defined '{found[found[-1]]}' in {group}({name}:{opts.get('short')}:{opts.get('long')}) and {found[-2]}({found[1]}:{found[2]}:{found[3]})")
+                StdErr(f"Duble defined '{found[found[-1]]}' in {group}({name}:{opts.get('short')}:{opts.get('long')}) and {found[-2]}({found[1]}:{found[2]}:{found[3]})")
                 os._exit(1)
 
             # inside command define
@@ -236,7 +244,7 @@ class SysArg:
                             if _short[1] not in GroupCfg['combin']:
                                 GroupCfg['combin'].append(_short[1])
                         else:
-                            print('combin required _short parameter with single character with - (ex: -a)')
+                            StdErr('combin required _short parameter with single character with - (ex: -a)')
                             os._exit(1)
             #if exist params_name then change params to default 1
             if opts.get('params_name') and not opts.get('params'):
@@ -321,7 +329,7 @@ class SysArg:
                 if isinstance(self.groups[name][k],dict):
                     out[k]=self.groups[name][k].get('value')
         else:
-            print("Can not find groupname '{name}'")
+            StdErr("Can not find groupname '{name}'")
             os._exit(1)
         return out
 
@@ -359,7 +367,8 @@ class SysArg:
                 if self.IsOpt(args[i]):
                     #Version
                     if args[i] in self.version_tag:
-                        print(self.version)
+                        sys.stdout.write(self.version)
+                        sys.stdout.flush()
                         os._exit(0)
                     #Help
                     elif args[i] in self.help_tag:
@@ -385,7 +394,7 @@ class SysArg:
                                 if found_type is bool and req_data_num == 0:
                                     self.groups[cg][x[0]]['value']=True
                                 else:
-                                    print(f"Something wrong for combined option at {x[0]}:type({found_type}),params({req_data_num}) group={cg}.\nPlease check it. it should be type=bool, params=0")
+                                    StdErr(f"Something wrong for combined option at {x[0]}:type({found_type}),params({req_data_num}) group={cg}.\nPlease check it. it should be type=bool, params=0")
                                     os._exit(1)
                         else:
                             #Normal option
@@ -403,10 +412,10 @@ class SysArg:
                                         elif args[i+1].lower() == 'false':
                                             self.groups[cg][found[0]]['value']=False
                                         else:
-                                            print(f"{args[i+1]} is not bool type, {found_tag}'s type required bool")
+                                            StdErr(f"{args[i+1]} is not bool type, {found_tag}'s type required bool")
                                             os._exit(1)
                                     except:
-                                        print(f"{args[i+1]} is not bool type, {found_tag}'s type required bool")
+                                        StdErr(f"{args[i+1]} is not bool type, {found_tag}'s type required bool")
                                         os._exit(1)
                      
                             elif found_type in [int,float]:
@@ -416,16 +425,16 @@ class SysArg:
                                         try:
                                             self.groups[cg][found[0]]['value']=float(args[i])
                                         except:
-                                            print(f"{args[i]} is not float type, {found_tag}'s type required float")
+                                            StdErr(f"{args[i]} is not float type, {found_tag}'s type required float")
                                             os._exit(1)
                                     else:
                                         try:
                                             self.groups[cg][found[0]]['value']=int(args[i])
                                         except:
-                                            print(f"{args[i]} is not int type, {found_tag}'s type required int")
+                                            StdErr(f"{args[i]} is not int type, {found_tag}'s type required int")
                                             os._exit(1)
                                 else:
-                                    print(f"{found_tag} required int value. missing value")
+                                    StdErr(f"{found_tag} required int value. missing value")
                                     os._exit(1)
                             elif found_type in [list,tuple]:
                                 spliter=self.groups[cg][found[0]].get('spliter')
@@ -434,7 +443,7 @@ class SysArg:
                                     if req_data_num == 1:
                                         i+=1
                                         if self.IsOpt(args[i]):
-                                            print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                            StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
                                             os._exit(1)
                                         if spliter:
                                             v=args[i].split(spliter)
@@ -444,7 +453,7 @@ class SysArg:
                                         for x in range(1,req_data_num+1):
                                             i+=1
                                             if self.IsOpt(args[i]):
-                                                print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                                StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
                                                 os._exit(1)
                                             v.append(args[i])
                                     if found_type is tuple:
@@ -455,25 +464,25 @@ class SysArg:
                                 found_type=found_type.lower()
                                 if found_type == 'ip':
                                     if len(args)<= i+1 or self.IsOpt(args[i+1]):
-                                        print(f"{args[i]} is not value, {found_tag} required 1 values")
+                                        StdErr(f"{args[i]} is not value, {found_tag} required 1 values")
                                         os._exit(1)
                                     i+=1
                                     ip=IpV4(args[i])
                                     if ip:
                                         self.groups[cg][found[0]]['value']=ip
                                     else:
-                                        print(f"{found_tag} required ip format")
+                                        StdErr(f"{found_tag} required ip format")
                                         os._exit(1)
                                 elif found_type == 'mac':
                                     if len(args) <= i+1 or self.IsOpt(args[i+1]):
-                                        print(f"{args[i]} is not value, {found_tag} required 1 values")
+                                        StdErr(f"{args[i]} is not value, {found_tag} required 1 values")
                                         os._exit(1)
                                     i+=1
                                     mac=MacV4(args[i])
                                     if mac:
                                         self.groups[cg][found[0]]['value']=mac
                                     else:
-                                        print(f"{found_tag} required MAC format")
+                                        StdErr(f"{found_tag} required MAC format")
                                         os._exit(1)
                                 else: #auto matic convert : found_type in ['auto']:
                                     spliter=self.groups[cg][found[0]].get('spliter')
@@ -482,7 +491,7 @@ class SysArg:
                                         if req_data_num == 1:
                                             i+=1
                                             if self.IsOpt(args[i]):
-                                                print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                                StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
                                                 os._exit(1)
                                             if spliter:
                                                 for x in args[i].split(spliter):
@@ -499,7 +508,7 @@ class SysArg:
                                             for x in range(1,req_data_num+1):
                                                 i+=1
                                                 if self.IsOpt(args[i]):
-                                                    print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                                    StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
                                                     os._exit(1)
                                                 try:
                                                     v.append(eval(args[i]))
@@ -512,7 +521,7 @@ class SysArg:
                                     for x in range(1,req_data_num+1):
                                         i+=1
                                         if self.IsOpt(args[i]):
-                                            print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                            StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
                                             os._exit(1)
                                         v.append(args[i])
                                     o=found_type(*v)
@@ -521,7 +530,7 @@ class SysArg:
                                             if o[0]:
                                                 self.groups[cg][found[0]]['value']=o[1:]
                                             else:
-                                                print(f"{v} is not right value of {found_tag}, issue with {o[1:]}")
+                                                StdErr(f"{v} is not right value of {found_tag}, issue with {o[1:]}")
                                                 os._exit(1)
                                         else:
                                             self.groups[cg][found[0]]['value']=o
@@ -533,13 +542,13 @@ class SysArg:
                                     for x in range(1,req_data_num+1):
                                         i+=1
                                         if self.IsOpt(args[i]):
-                                            print(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                            StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
                                             os._exit(1)
                                         v.append(args[i])
                                     self.groups[cg][found[0]]['value']=' '.join(v)
                     else:
                         if not self.support_unknown_option:
-                            print(f"Unknown '{args[i]}'")
+                            StdErr(f"Unknown '{args[i]}'")
                             os._exit(1)
                 i+=1
 
@@ -556,17 +565,18 @@ class SysArg:
         args=self.args[1:]
         _analysis_params_('global',self.args[1:])
         #Check required parameters are missing in global options
-        for k in self.groups['global']:
-            if not isinstance(self.groups['global'][k],dict): continue
-            #Todo:
-            #if run this command then required value
-            if self.groups['global'][k].get('required') is True or  \
-               self.groups['global'][k].get('required') == run_cmd:
-                if self.groups['global'][k]['value'] is None:
-                    found_tag=self.groups['global'][k].get('short') if self.groups['global'][k].get('short') else self.groups['global'][k].get('long')
-                    req_group='global' if self.groups['global'][k].get('required') is True else run_cmd
-                    print(f"{found_tag} required values in {req_group}, but missing data")
-                    os._exit(1)
+        if 'global' in self.groups:
+            for k in self.groups['global']:
+                if not isinstance(self.groups['global'][k],dict): continue
+                #Todo:
+                #if run this command then required value
+                if self.groups['global'][k].get('required') is True or  \
+                   self.groups['global'][k].get('required') == run_cmd:
+                    if self.groups['global'][k]['value'] is None:
+                        found_tag=self.groups['global'][k].get('short') if self.groups['global'][k].get('short') else self.groups['global'][k].get('long')
+                        req_group='global' if self.groups['global'][k].get('required') is True else run_cmd
+                        StdErr(f"{found_tag} required values in {req_group}, but missing data")
+                        os._exit(1)
 
         #Global groups parameters
         groups=self.GetGroupNames(command=False)
@@ -581,7 +591,7 @@ class SysArg:
                     if self.groups[c][k]['value'] is None:
                         found_tag=self.groups[c][k].get('short') if self.groups[c][k].get('short') else self.groups[c][k].get('long')
                         req_group=c if self.groups[c][k].get('required') is True else run_cmd
-                        print(f"{found_tag} required values in {req_group}, but missing data")
+                        StdErr(f"{found_tag} required values in {req_group}, but missing data")
                         os._exit(1)
 
         #Each defined command's parameters
@@ -601,7 +611,7 @@ class SysArg:
                     if self.groups[c][k]['value'] is None:
                         found_tag=self.groups[c][k].get('short') if self.groups[c][k].get('short') else self.groups[c][k].get('long')
                         req_group=c if self.groups[c][k].get('required') is True else run_cmd
-                        print(f"{found_tag} required values in {req_group}, but missing data")
+                        StdErr(f"{found_tag} required values in {req_group}, but missing data")
                         os._exit(1)
         # Find Others after parameters
         i=len(args)-1
@@ -817,9 +827,9 @@ class SysArg:
        command=self.Cmd()
        if command:
            #Command group
-           print()
-           sys.stdout.write('Usage: {} {} [OPTION] [<args>]\n'.format(self.program,command))
-           print()
+           StdOut('\n')
+           StdOut('Usage: {} {} [OPTION] [<args>]\n'.format(self.program,command))
+           StdOut('\n')
            if self.groups[command].get('desc'):
                _group_desc=WrapString(self.groups[command]['desc'],nspace=short_len+long_len+desc_space)
                sys.stdout.write(' %s\n'%(_group_desc))
@@ -854,7 +864,7 @@ class SysArg:
                    group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
                    if len(self.groups[gg]) >= 3 and (not group_hidden or self.SysArg_hidden_show):
                        tt_str='( {} )'.format(gg)
-                       print()
+                       StdOut('\n')
                        __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
                        _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
                        sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
@@ -938,7 +948,7 @@ class SysArg:
                group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
                if len(self.groups[gg]) >= 3 and (not group_hidden or self.SysArg_hidden_show):
                    tt_str='( {} )'.format(gg)
-                   print()
+                   StdOut('\n')
                    __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
                    _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
                    sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
@@ -957,7 +967,7 @@ class SysArg:
                group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
                if len(self.groups[gg]) >= 3 and (not group_hidden or self.SysArg_hidden_show):
                    tt_str=' * {}'.format(gg)
-                   print()
+                   StdOut('\n')
                    if self.groups[gg].get('desc'):
                        _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space)
                        sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
@@ -971,7 +981,7 @@ class SysArg:
        #Print Epilog
        #------------------------------------------------------------------------------------------
        if self.epilog:
-           print(self.epilog)
+           StdOut(self.epilog)
        #------------------------------------------------------------------------------------------
        os._exit(0)
 
