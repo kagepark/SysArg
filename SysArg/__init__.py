@@ -367,13 +367,22 @@ class SysArg:
                 if self.IsOpt(args[i]):
                     #Version
                     if args[i] in self.version_tag:
-                        sys.stdout.write(self.version)
-                        sys.stdout.flush()
-                        os._exit(0)
+                        if i == 0 or args[0] == self.Cmd():
+                            #own version or my group's version
+                            StdOut(self.version)
+                            os._exit(0)
+                        elif not self.Cmd():
+                            #external sub-command's version then return to sub-command's version
+                            return
                     #Help
                     elif args[i] in self.help_tag:
-                        self.Help()
-                        os._exit(0)
+                        if i == 0 or args[0] == self.Cmd():
+                            #own help or my group's help
+                            self.Help()
+                            os._exit(0)
+                        elif not slef.Cmd():
+                             #external sub-command's help then return to sub-command's help
+                            return
                     #Todo:
                     # check combined options condition
                     # then split it to single
@@ -565,18 +574,17 @@ class SysArg:
         args=self.args[1:]
         _analysis_params_('global',self.args[1:])
         #Check required parameters are missing in global options
-        if 'global' in self.groups:
-            for k in self.groups['global']:
-                if not isinstance(self.groups['global'][k],dict): continue
-                #Todo:
-                #if run this command then required value
-                if self.groups['global'][k].get('required') is True or  \
-                   self.groups['global'][k].get('required') == run_cmd:
-                    if self.groups['global'][k]['value'] is None:
-                        found_tag=self.groups['global'][k].get('short') if self.groups['global'][k].get('short') else self.groups['global'][k].get('long')
-                        req_group='global' if self.groups['global'][k].get('required') is True else run_cmd
-                        StdErr(f"{found_tag} required values in {req_group}, but missing data")
-                        os._exit(1)
+        for k in self.groups.get('global',{}):
+            if not isinstance(self.groups['global'][k],dict): continue
+            #Todo:
+            #if run this command then required value
+            if self.groups['global'][k].get('required') is True or  \
+               self.groups['global'][k].get('required') == run_cmd:
+                if self.groups['global'][k]['value'] is None:
+                    found_tag=self.groups['global'][k].get('short') if self.groups['global'][k].get('short') else self.groups['global'][k].get('long')
+                    req_group='global' if self.groups['global'][k].get('required') is True else run_cmd
+                    StdErr(f"{found_tag} required values in {req_group}, but missing data")
+                    os._exit(1)
 
         #Global groups parameters
         groups=self.GetGroupNames(command=False)
@@ -806,23 +814,20 @@ class SysArg:
                    else:
                        sss=long_len
                    if data.get('params_name'):
-                       sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,sss)%(data.get('short'),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
+                       StdOut('%{}s, %-{}s%s\n'.format(short_len,sss)%(data.get('short'),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
                    else:
-                       sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,sss)%(data.get('short'),data.get('long'),_desc))
-                   sys.stdout.flush()
+                       StdOut('%{}s, %-{}s%s\n'.format(short_len,sss)%(data.get('short'),data.get('long'),_desc))
                elif data.get('short'):
                    if len(data.get('short')) > short_len:
                        sss=long_len-(len(data.get('short'))-short_len)
                    else:
                        sss=long_len
-                   sys.stdout.write('%{}s  %s%s\n'.format(short_len)%(data.get('short'),Space(sss),_desc))
-                   sys.stdout.flush()
+                   StdOut('%{}s  %s%s\n'.format(short_len)%(data.get('short'),Space(sss),_desc))
                elif data.get('long'):
                    if data.get('params_name'):
-                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
+                       StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
                    else:
-                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),data.get('long'),_desc))
-                   sys.stdout.flush()
+                       StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),data.get('long'),_desc))
        # If exist command then print help for the command only (show all)
        command=self.Cmd()
        if command:
@@ -832,21 +837,20 @@ class SysArg:
            StdOut('\n')
            if self.groups[command].get('desc'):
                _group_desc=WrapString(self.groups[command]['desc'],nspace=short_len+long_len+desc_space)
-               sys.stdout.write(' %s\n'%(_group_desc))
-           sys.stdout.write('\n[OPTION]\n')
+               StdOut(' %s\n'%(_group_desc))
+           StdOut('\n[OPTION]\n')
            #Print Help Option
            _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
            if self.help_tag:
                if len(self.help_tag) == 2:
-                   sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
+                   StdOut('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
                else:
                    if self.help_tag[0][1] == '-':
-                       sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
+                       StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
                    else:
-                       sys.stdout.write('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
-           sys.stdout.flush()
+                       StdOut('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
            #Print global's options
-           for ii in self.groups['global']:
+           for ii in self.groups.get('global',{}):
                print_option(self.groups['global'][ii])
 
            #Print command's regular options
@@ -858,7 +862,7 @@ class SysArg:
            #------------------------------------------------------------------------------------------
            global_group_options=self.GetGroupNames(command=False)
            if global_group_options:
-               sys.stdout.write('\n[Global Group Options]')
+               StdOut('\n[Global Group Options]')
                for gg in global_group_options:
                    #if command but no option/hidden then ignore
                    group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
@@ -867,11 +871,10 @@ class SysArg:
                        StdOut('\n')
                        __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
                        _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
-                       sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
-                       sys.stdout.flush()
+                       StdOut('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
                        for oo in self.groups[gg]:
                            print_option(self.groups[gg][oo])
-
+               StdOut('\n')
            os._exit(0)
        #######################
        #Print Help(Main Design)
@@ -881,60 +884,55 @@ class SysArg:
        groups=self.GetGroupNames(command=False)
        if self.program:
            if commands:
-               sys.stdout.write('\nUsage: {} <command> [OPTION] [<args>]\n'.format(self.program))
+               StdOut('\nUsage: {} <command> [OPTION] [<args>]\n'.format(self.program))
            else:
-               sys.stdout.write('\nUsage: {} [OPTION] [<args>]\n'.format(self.program))
+               StdOut('\nUsage: {} [OPTION] [<args>]\n'.format(self.program))
            if self.version:
-               sys.stdout.write('Version: {}\n\n'.format(self.version))
-           sys.stdout.flush()
+               StdOut('Version: {}\n\n'.format(self.version))
 
        #Print Desc
        if self.desc:
-           sys.stdout.write(self.desc+'\n')
-           sys.stdout.flush()
+           StdOut(self.desc+'\n')
 
        #Supported Commands display Description
        if commands:
-           sys.stdout.write('\nSupported <command>s are:\n')
+           StdOut('\nSupported <command>s are:\n')
            for cc in commands:
                if not self.SysArg_hidden_show and self.groups.get(cc,{}).get('hidden'): continue
                if self.groups.get(cc,{}).get('desc') :
                    _group_desc=WrapString(self.groups[cc]['desc'],nspace=short_len+long_len+desc_space)
                    if self.groups.get(cc,{}).get('arg'): # required argument
-                       sys.stdout.write('  %-{}s%s\n'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
+                       StdOut('  %-{}s%s\n'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
                    else:
-                       sys.stdout.write('  %-{}s%s\n'.format(short_len+long_len)%(cc,_group_desc))
+                       StdOut('  %-{}s%s\n'.format(short_len+long_len)%(cc,_group_desc))
                else:
-                   sys.stdout.write('  %-{}s\n'.format(short_len+long_len)%(cc))
-               sys.stdout.flush()
-           sys.stdout.flush()
+                   StdOut('  %-{}s\n'.format(short_len+long_len)%(cc))
 
-       sys.stdout.write('\n[OPTION]\n')
+       StdOut('\n[OPTION]\n')
        #Print Help/Version Option
        #------------------------------------------------------------------------------------------
        _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
        if len(self.help_tag) == 2:
-           sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
+           StdOut('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
        else:
            if self.help_tag[0][1] == '-':
-               sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
+               StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
            else:
-               sys.stdout.write('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
+               StdOut('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
        #------------------------------------------------------------------------------------------
        _version_desc=WrapString(self.version_desc,nspace=short_len+long_len+desc_space)
        if len(self.version_tag) == 2:
-           sys.stdout.write('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.version_tag[0],self.version_tag[1],_version_desc))
+           StdOut('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.version_tag[0],self.version_tag[1],_version_desc))
        else:
            if self.version_tag[0][1] == '-':
-               sys.stdout.write('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.version_tag[0],_version_desc))
+               StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.version_tag[0],_version_desc))
            else:
-               sys.stdout.write('%{}s  %s\n'.format(short_len)%(self.version_tag[0],Space(long_len),_version_desc))
-       sys.stdout.flush()
+               StdOut('%{}s  %s\n'.format(short_len)%(self.version_tag[0],Space(long_len),_version_desc))
        #------------------------------------------------------------------------------------------
 
        #Print Global Options
        #------------------------------------------------------------------------------------------
-       for ii in self.groups['global']:
+       for ii in self.groups.get('global',{}):
            print_option(self.groups['global'][ii])
        #------------------------------------------------------------------------------------------
 
@@ -942,7 +940,7 @@ class SysArg:
        #------------------------------------------------------------------------------------------
        global_group_options=self.GetGroupNames(command=False)
        if global_group_options:
-           sys.stdout.write('\n[Global Group Options]')
+           StdOut('\n[Global Group Options]')
            for gg in global_group_options:
                #if command but no option/hidden then ignore
                group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
@@ -951,8 +949,7 @@ class SysArg:
                    StdOut('\n')
                    __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
                    _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
-                   sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
-                   sys.stdout.flush()
+                   StdOut('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
                    for oo in self.groups[gg]:
                        print_option(self.groups[gg][oo])
        #------------------------------------------------------------------------------------------
@@ -961,7 +958,7 @@ class SysArg:
        #------------------------------------------------------------------------------------------
        sub_commands=self.GetGroupNames(command=True)
        if sub_commands:
-           sys.stdout.write('\n[sub-commands]')
+           StdOut('\n[sub-commands]')
            for gg in sub_commands:
                #if command but no option/hidden then ignore
                group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
@@ -970,10 +967,9 @@ class SysArg:
                    StdOut('\n')
                    if self.groups[gg].get('desc'):
                        _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space)
-                       sys.stdout.write('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
+                       StdOut('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
                    else:
-                       sys.stdout.write('%-{}s\n'.format(short_len+long_len)%(tt_str))
-                   sys.stdout.flush()
+                       StdOut('%-{}s\n'.format(short_len+long_len)%(tt_str))
                    for oo in self.groups[gg]:
                        print_option(self.groups[gg][oo])
        #------------------------------------------------------------------------------------------
