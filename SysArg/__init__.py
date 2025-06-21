@@ -380,7 +380,7 @@ class SysArg:
                             #own help or my group's help
                             self.Help()
                             os._exit(0)
-                        elif not slef.Cmd():
+                        elif not self.Cmd():
                              #external sub-command's help then return to sub-command's help
                             return
                     #Todo:
