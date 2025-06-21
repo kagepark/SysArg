@@ -7,12 +7,12 @@ from kmport import *
 #version 2.x
 #Kage Park
 
-def StdErr(msg):
-    sys.stderr.write(msg)
+def StdErr(msg,end='\n'):
+    sys.stderr.write(f'{msg}{end}')
     sys.stderr.flush()
 
-def StdOut(msg):
-    sys.stdout.write(msg)
+def StdOut(msg,end='\n'):
+    sys.stdout.write(f'{msg}{end}')
     sys.stdout.flush()
 
 class SysArg:
@@ -814,41 +814,41 @@ class SysArg:
                    else:
                        sss=long_len
                    if data.get('params_name'):
-                       StdOut('%{}s, %-{}s%s\n'.format(short_len,sss)%(data.get('short'),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
+                       StdOut('%{}s, %-{}s%s'.format(short_len,sss)%(data.get('short'),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
                    else:
-                       StdOut('%{}s, %-{}s%s\n'.format(short_len,sss)%(data.get('short'),data.get('long'),_desc))
+                       StdOut('%{}s, %-{}s%s'.format(short_len,sss)%(data.get('short'),data.get('long'),_desc))
                elif data.get('short'):
                    if len(data.get('short')) > short_len:
                        sss=long_len-(len(data.get('short'))-short_len)
                    else:
                        sss=long_len
-                   StdOut('%{}s  %s%s\n'.format(short_len)%(data.get('short'),Space(sss),_desc))
+                   StdOut('%{}s  %s%s'.format(short_len)%(data.get('short'),Space(sss),_desc))
                elif data.get('long'):
                    if data.get('params_name'):
-                       StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
+                       StdOut('%s  %-{}s%s'.format(long_len)%(Space(short_len),'{}={}'.format(data.get('long'),data.get('params_name')),_desc))
                    else:
-                       StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),data.get('long'),_desc))
+                       StdOut('%s  %-{}s%s'.format(long_len)%(Space(short_len),data.get('long'),_desc))
        # If exist command then print help for the command only (show all)
        command=self.Cmd()
        if command:
            #Command group
-           StdOut('\n')
-           StdOut('Usage: {} {} [OPTION] [<args>]\n'.format(self.program,command))
-           StdOut('\n')
+           StdOut('')
+           StdOut('Usage: {} {} [OPTION] [<args>]'.format(self.program,command))
+           StdOut('')
            if self.groups[command].get('desc'):
                _group_desc=WrapString(self.groups[command]['desc'],nspace=short_len+long_len+desc_space)
-               StdOut(' %s\n'%(_group_desc))
-           StdOut('\n[OPTION]\n')
+               StdOut(' %s'%(_group_desc))
+           StdOut('\n[OPTION]')
            #Print Help Option
            _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
            if self.help_tag:
                if len(self.help_tag) == 2:
-                   StdOut('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
+                   StdOut('%{}s, %-{}s%s'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
                else:
                    if self.help_tag[0][1] == '-':
-                       StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
+                       StdOut('%s  %-{}s%s'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
                    else:
-                       StdOut('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
+                       StdOut('%{}s  %s'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
            #Print global's options
            for ii in self.groups.get('global',{}):
                print_option(self.groups['global'][ii])
@@ -868,13 +868,13 @@ class SysArg:
                    group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
                    if len(self.groups[gg]) >= 3 and (not group_hidden or self.SysArg_hidden_show):
                        tt_str='( {} )'.format(gg)
-                       StdOut('\n')
+                       StdOut('')
                        __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
                        _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
-                       StdOut('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
+                       StdOut('%-{}s%s'.format(short_len+long_len)%(tt_str,_group_desc))
                        for oo in self.groups[gg]:
                            print_option(self.groups[gg][oo])
-               StdOut('\n')
+               StdOut('')
            os._exit(0)
        #######################
        #Print Help(Main Design)
@@ -884,50 +884,50 @@ class SysArg:
        groups=self.GetGroupNames(command=False)
        if self.program:
            if commands:
-               StdOut('\nUsage: {} <command> [OPTION] [<args>]\n'.format(self.program))
+               StdOut('\nUsage: {} <command> [OPTION] [<args>]'.format(self.program))
            else:
-               StdOut('\nUsage: {} [OPTION] [<args>]\n'.format(self.program))
+               StdOut('\nUsage: {} [OPTION] [<args>]'.format(self.program))
            if self.version:
-               StdOut('Version: {}\n\n'.format(self.version))
+               StdOut('Version: {}\n'.format(self.version))
 
        #Print Desc
        if self.desc:
-           StdOut(self.desc+'\n')
+           StdOut(self.desc)
 
        #Supported Commands display Description
        if commands:
-           StdOut('\nSupported <command>s are:\n')
+           StdOut('\nSupported <command>s are:')
            for cc in commands:
                if not self.SysArg_hidden_show and self.groups.get(cc,{}).get('hidden'): continue
                if self.groups.get(cc,{}).get('desc') :
                    _group_desc=WrapString(self.groups[cc]['desc'],nspace=short_len+long_len+desc_space)
                    if self.groups.get(cc,{}).get('arg'): # required argument
-                       StdOut('  %-{}s%s\n'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
+                       StdOut('  %-{}s%s'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
                    else:
-                       StdOut('  %-{}s%s\n'.format(short_len+long_len)%(cc,_group_desc))
+                       StdOut('  %-{}s%s'.format(short_len+long_len)%(cc,_group_desc))
                else:
-                   StdOut('  %-{}s\n'.format(short_len+long_len)%(cc))
+                   StdOut('  %-{}s'.format(short_len+long_len)%(cc))
 
-       StdOut('\n[OPTION]\n')
+       StdOut('\n[OPTION]')
        #Print Help/Version Option
        #------------------------------------------------------------------------------------------
        _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
        if len(self.help_tag) == 2:
-           StdOut('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
+           StdOut('%{}s, %-{}s%s'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
        else:
            if self.help_tag[0][1] == '-':
-               StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
+               StdOut('%s  %-{}s%s'.format(long_len)%(Space(short_len),self.help_tag[0],_help_desc))
            else:
-               StdOut('%{}s  %s\n'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
+               StdOut('%{}s  %s'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
        #------------------------------------------------------------------------------------------
        _version_desc=WrapString(self.version_desc,nspace=short_len+long_len+desc_space)
        if len(self.version_tag) == 2:
-           StdOut('%{}s, %-{}s%s\n'.format(short_len,long_len)%(self.version_tag[0],self.version_tag[1],_version_desc))
+           StdOut('%{}s, %-{}s%s'.format(short_len,long_len)%(self.version_tag[0],self.version_tag[1],_version_desc))
        else:
            if self.version_tag[0][1] == '-':
-               StdOut('%s  %-{}s%s\n'.format(long_len)%(Space(short_len),self.version_tag[0],_version_desc))
+               StdOut('%s  %-{}s%s'.format(long_len)%(Space(short_len),self.version_tag[0],_version_desc))
            else:
-               StdOut('%{}s  %s\n'.format(short_len)%(self.version_tag[0],Space(long_len),_version_desc))
+               StdOut('%{}s  %s'.format(short_len)%(self.version_tag[0],Space(long_len),_version_desc))
        #------------------------------------------------------------------------------------------
 
        #Print Global Options
@@ -946,10 +946,10 @@ class SysArg:
                group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
                if len(self.groups[gg]) >= 3 and (not group_hidden or self.SysArg_hidden_show):
                    tt_str='( {} )'.format(gg)
-                   StdOut('\n')
+                   StdOut('')
                    __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
                    _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
-                   StdOut('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
+                   StdOut('%-{}s%s'.format(short_len+long_len)%(tt_str,_group_desc))
                    for oo in self.groups[gg]:
                        print_option(self.groups[gg][oo])
        #------------------------------------------------------------------------------------------
@@ -964,12 +964,12 @@ class SysArg:
                group_hidden=self.groups[gg].pop('hidden') if 'hidden' in self.groups[gg] else None
                if len(self.groups[gg]) >= 3 and (not group_hidden or self.SysArg_hidden_show):
                    tt_str=' * {}'.format(gg)
-                   StdOut('\n')
+                   StdOut('')
                    if self.groups[gg].get('desc'):
                        _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space)
-                       StdOut('%-{}s%s\n'.format(short_len+long_len)%(tt_str,_group_desc))
+                       StdOut('%-{}s%s'.format(short_len+long_len)%(tt_str,_group_desc))
                    else:
-                       StdOut('%-{}s\n'.format(short_len+long_len)%(tt_str))
+                       StdOut('%-{}s'.format(short_len+long_len)%(tt_str))
                    for oo in self.groups[gg]:
                        print_option(self.groups[gg][oo])
        #------------------------------------------------------------------------------------------
