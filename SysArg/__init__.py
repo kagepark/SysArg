@@ -329,7 +329,7 @@ class SysArg:
                 if isinstance(self.groups[name][k],dict):
                     out[k]=self.groups[name][k].get('value')
         else:
-            StdErr("Can not find groupname '{name}'")
+            StdErr(f"Can not find groupname '{name}'")
             os._exit(1)
         return out
 
