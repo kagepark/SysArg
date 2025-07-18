@@ -141,7 +141,7 @@ class SysArg:
             if verify: #sys.argv analysis area
                 oo=[]
                 ok=False
-                for gg in self.GetGroupNames(whole=True): #Globals search all groups
+                for gg in self.GetGroupNames(command=False,whole=True): #Globals search all groups
                     o=_chk_(name,gg,short,long)
                     if o[0]:
                         if o[1] in oo: continue
@@ -153,7 +153,7 @@ class SysArg:
                 if ok:
                     return ok,oo
             else: # define and other check
-                for gg in ['global']+self.GetGroupNames(): #Globals search all groups
+                for gg in ['global']+self.GetGroupNames(command=False): #Globals search all groups
                     o=_chk_(name,gg,short,long)
                     if o[0]:
                         return o
@@ -229,7 +229,8 @@ class SysArg:
                 os._exit(1)
             found=self.CheckNameOpts(name,short=opts.get('short'),long=opts.get('long'),group=group,command=GroupCfg.get('command'))
             if found[0]:
-                StdErr(f"Duble defined '{found[found[-1]]}' in {group}({name}:{opts.get('short')}:{opts.get('long')}) and {found[-2]}({found[1]}:{found[2]}:{found[3]})")
+                fp=found[1]
+                StdErr(f"Duble defined '{fp[1]}' in {group}({name}:{opts.get('short')}:{opts.get('long')}) and {fp[-2]}({fp[0]}:{fp[1]}:{fp[2]})\n(Can not duplicate options between Global and sub-command)")
                 os._exit(1)
 
             # inside command define
@@ -452,7 +453,7 @@ class SysArg:
                                     if req_data_num == 1:
                                         i+=1
                                         if self.IsOpt(args[i]):
-                                            StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                            StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values in {cg}")
                                             os._exit(1)
                                         if spliter:
                                             v=args[i].split(spliter)
@@ -462,7 +463,7 @@ class SysArg:
                                         for x in range(1,req_data_num+1):
                                             i+=1
                                             if self.IsOpt(args[i]):
-                                                StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                                StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values in {cg}")
                                                 os._exit(1)
                                             v.append(args[i])
                                     if found_type is tuple:
@@ -473,7 +474,7 @@ class SysArg:
                                 found_type=found_type.lower()
                                 if found_type == 'ip':
                                     if len(args)<= i+1 or self.IsOpt(args[i+1]):
-                                        StdErr(f"{args[i]} is not value, {found_tag} required 1 values")
+                                        StdErr(f"{args[i]} is not value, {found_tag} required 1 values in {cg}")
                                         os._exit(1)
                                     i+=1
                                     ip=IpV4(args[i])
@@ -484,7 +485,7 @@ class SysArg:
                                         os._exit(1)
                                 elif found_type == 'mac':
                                     if len(args) <= i+1 or self.IsOpt(args[i+1]):
-                                        StdErr(f"{args[i]} is not value, {found_tag} required 1 values")
+                                        StdErr(f"{args[i]} is not value, {found_tag} required 1 values in {cg}")
                                         os._exit(1)
                                     i+=1
                                     mac=MacV4(args[i])
@@ -500,7 +501,7 @@ class SysArg:
                                         if req_data_num == 1:
                                             i+=1
                                             if self.IsOpt(args[i]):
-                                                StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                                StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values in {cg}")
                                                 os._exit(1)
                                             if spliter:
                                                 for x in args[i].split(spliter):
@@ -517,7 +518,7 @@ class SysArg:
                                             for x in range(1,req_data_num+1):
                                                 i+=1
                                                 if self.IsOpt(args[i]):
-                                                    StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                                    StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values in {cg}")
                                                     os._exit(1)
                                                 try:
                                                     v.append(eval(args[i]))
@@ -530,7 +531,7 @@ class SysArg:
                                     for x in range(1,req_data_num+1):
                                         i+=1
                                         if self.IsOpt(args[i]):
-                                            StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                            StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values in {cg}")
                                             os._exit(1)
                                         v.append(args[i])
                                     o=found_type(*v)
@@ -551,14 +552,17 @@ class SysArg:
                                     for x in range(1,req_data_num+1):
                                         i+=1
                                         if self.IsOpt(args[i]):
-                                            StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values")
+                                            StdErr(f"{args[i]} is not value, {found_tag} required {req_data_num} values in {cg}")
                                             os._exit(1)
                                         v.append(args[i])
                                     self.groups[cg][found[0]]['value']=' '.join(v)
                     else:
-                        if not self.support_unknown_option:
-                            StdErr(f"Unknown '{args[i]}'")
-                            os._exit(1)
+                        #this option is not in global group then Error to unknown option
+                        #if this option in sub-command's option then it should be check in the sub-command only
+                        if c not in self.GetGroupNames(command=False,whole=True): #Globals search all groups
+                            if not self.support_unknown_option:
+                                StdErr(f"Unknown '{args[i]}'")
+                                os._exit(1)
                 i+=1
 
         #Get support command list
