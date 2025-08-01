@@ -803,7 +803,7 @@ class SysArg:
                        else:
                            _desc=_desc+'(input:{0}1 {0}2 ...)'.format(s)
            if _desc:
-               return WrapString(_desc,nspace=nspace)
+               return WrapString(_desc,nspace=nspace,auto_tap=True)
            return ''
        #######################
        #Option Design
@@ -840,11 +840,11 @@ class SysArg:
            StdOut('Usage: {} {} [OPTION] [<args>]'.format(self.program,command))
            StdOut('')
            if self.groups[command].get('desc'):
-               _group_desc=WrapString(self.groups[command]['desc'],nspace=short_len+long_len+desc_space)
+               _group_desc=WrapString(self.groups[command]['desc'],nspace=short_len+long_len+desc_space,auto_tap=True)
                StdOut(' %s'%(_group_desc))
            StdOut('\n[OPTION]')
            #Print Help Option
-           _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
+           _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space,auto_tap=True)
            if self.help_tag:
                if len(self.help_tag) == 2:
                    StdOut('%{}s, %-{}s%s'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
@@ -874,7 +874,7 @@ class SysArg:
                        tt_str='( {} )'.format(gg)
                        StdOut('')
                        __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
-                       _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
+                       _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space,auto_tap=True)
                        StdOut('%-{}s%s'.format(short_len+long_len)%(tt_str,_group_desc))
                        for oo in self.groups[gg]:
                            print_option(self.groups[gg][oo])
@@ -904,7 +904,7 @@ class SysArg:
            for cc in commands:
                if not self.SysArg_hidden_show and self.groups.get(cc,{}).get('hidden'): continue
                if self.groups.get(cc,{}).get('desc') :
-                   _group_desc=WrapString(self.groups[cc]['desc'],nspace=short_len+long_len+desc_space)
+                   _group_desc=WrapString(self.groups[cc]['desc'],nspace=short_len+long_len+desc_space,auto_tap=True)
                    if self.groups.get(cc,{}).get('arg'): # required argument
                        StdOut('  %-{}s%s'.format(short_len+long_len)%('{} [OPT] <arg>'.format(cc),_group_desc))
                    else:
@@ -915,7 +915,7 @@ class SysArg:
        StdOut('\n[OPTION]')
        #Print Help/Version Option
        #------------------------------------------------------------------------------------------
-       _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space)
+       _help_desc=WrapString(self.help_desc,nspace=short_len+long_len+desc_space,auto_tap=True)
        if len(self.help_tag) == 2:
            StdOut('%{}s, %-{}s%s'.format(short_len,long_len)%(self.help_tag[0],self.help_tag[1],_help_desc))
        else:
@@ -924,7 +924,7 @@ class SysArg:
            else:
                StdOut('%{}s  %s'.format(short_len)%(self.help_tag[0],Space(long_len),_help_desc))
        #------------------------------------------------------------------------------------------
-       _version_desc=WrapString(self.version_desc,nspace=short_len+long_len+desc_space)
+       _version_desc=WrapString(self.version_desc,nspace=short_len+long_len+desc_space,auto_tap=True)
        if len(self.version_tag) == 2:
            StdOut('%{}s, %-{}s%s'.format(short_len,long_len)%(self.version_tag[0],self.version_tag[1],_version_desc))
        else:
@@ -952,7 +952,7 @@ class SysArg:
                    tt_str='( {} )'.format(gg)
                    StdOut('')
                    __group_desc=self.groups[gg].get('desc') if self.groups[gg].get('desc') else 'group name'
-                   _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space)
+                   _group_desc=WrapString(__group_desc,nspace=short_len+long_len+desc_space,auto_tap=True)
                    StdOut('%-{}s%s'.format(short_len+long_len)%(tt_str,_group_desc))
                    for oo in self.groups[gg]:
                        print_option(self.groups[gg][oo])
@@ -970,7 +970,7 @@ class SysArg:
                    tt_str=' * {}'.format(gg)
                    StdOut('')
                    if self.groups[gg].get('desc'):
-                       _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space)
+                       _group_desc=WrapString(self.groups[gg]['desc'],nspace=short_len+long_len+desc_space,auto_tap=True)
                        StdOut('%-{}s%s'.format(short_len+long_len)%(tt_str,_group_desc))
                    else:
                        StdOut('%-{}s'.format(short_len+long_len)%(tt_str))
